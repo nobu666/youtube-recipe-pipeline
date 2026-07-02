@@ -10,7 +10,7 @@ YouTube動画の文字起こし・Web記事のテキスト・ドキュメント�
 ## 全体の流れ
 
 1. **テキスト取得**（Macローカルで実行）:
-   - YouTube URL → `~/scripts/transcribe.py` で字幕/音声を取得（mlx-whisper）
+   - 動画URL（YouTube、TikTok、Instagram、X動画等 yt-dlp対応サイト全般）→ `~/scripts/transcribe.py` で字幕/音声を取得（mlx-whisper）。YouTube以外は自動判定（動画でなければ記事処理にフォールバック）
    - ローカルの音声/動画ファイル（.mp3/.m4a/.wav/.mp4/.mov 等）→ `~/scripts/transcribe.py` で Whisper 文字起こし
    - それ以外のURL・ファイル → `~/scripts/convert.py` で MarkItDown によりMarkdown化
    - 結果は `.transcripts/` フォルダに保存される

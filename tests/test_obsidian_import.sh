@@ -90,6 +90,18 @@ is_audio_file "https://youtu.be/abc" && r=yes || r=no
 assert_eq "URL → no" "no" "$r"
 rm -rf "$_AUDIO_TMP"
 
+# --- transcribe.py終了コードの解釈テスト ---
+echo ""
+echo "=== transcribe.py 終了コードの解釈 ==="
+
+# 実体スクリプトから decide_transcribe_outcome を抽出して読み込む（本物を検証）
+_SI_SCRIPT_FOR_STATUS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/obsidian-import"
+eval "$(awk '/^decide_transcribe_outcome\(\) \{/,/^\}/' "$_SI_SCRIPT_FOR_STATUS")"
+
+assert_eq "終了コード0(成功) → continue" "continue" "$(decide_transcribe_outcome 0)"
+assert_eq "終了コード2(動画でない) → fallback" "fallback" "$(decide_transcribe_outcome 2)"
+assert_eq "終了コード1(エラー) → continue(縮退続行)" "continue" "$(decide_transcribe_outcome 1)"
+
 # --- シンボリックリンク書き込み拒否テスト ---
 echo ""
 echo "=== シンボリックリンク書き込み拒否 ==="

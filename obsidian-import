@@ -101,6 +101,17 @@ is_audio_file() {
   [[ -f "$1" && "$lower" =~ \.(mp3|m4a|m4b|wav|aac|flac|ogg|opus|mp4|mov|m4v)$ ]]
 }
 
+# transcribe.py の終了コードから次のアクションを決める。
+# 0=成功, 2=動画でなかった(記事処理へフォールバック), それ以外=エラーだが変換は続行
+decide_transcribe_outcome() {
+  local status="$1"
+  if [ "$status" = "2" ]; then
+    echo "fallback"
+  else
+    echo "continue"
+  fi
+}
+
 # プロンプトファイルからヘッダと本文を読み込み、変数にセット
 # 引数: プロンプトファイルパス
 # 出力: LOADED_PROMPT_BODY, LOADED_OUTPUT_DIR
@@ -177,17 +188,38 @@ write_note() {
 
 echo "=== Step 1/2: テキスト抽出 ==="
 echo "出力先: ${OUTPUT_DIR}"
-if is_youtube "$INPUT" || is_audio_file "$INPUT"; then
-  if is_audio_file "$INPUT"; then
-    echo "モード: ローカル音声/動画 文字起こし"
-  else
-    echo "モード: YouTube文字起こし"
+
+RUN_TRANSCRIBE=false
+EXTRA_TRANSCRIBE_ARGS=()
+if is_audio_file "$INPUT"; then
+  echo "モード: ローカル音声/動画 文字起こし"
+  RUN_TRANSCRIBE=true
+elif is_youtube "$INPUT"; then
+  echo "モード: YouTube文字起こし"
+  RUN_TRANSCRIBE=true
+else
+  # YouTube以外は yt-dlp に判定を委ねる（対応サイトなら動画として処理する）
+  if "$HOME/scripts/.venv/bin/python3" "$TRANSCRIBE_SCRIPT" --probe "$INPUT" >/dev/null 2>&1; then
+    echo "モード: 動画サイト文字起こし"
+    RUN_TRANSCRIBE=true
+    EXTRA_TRANSCRIBE_ARGS=(--assume-video)
   fi
-  if ! nice -n 10 "$HOME/scripts/.venv/bin/python3" "$TRANSCRIBE_SCRIPT" -o "$OUTPUT_DIR" "$INPUT"; then
+fi
+
+if [ "$RUN_TRANSCRIBE" = true ]; then
+  nice -n 10 "$HOME/scripts/.venv/bin/python3" "$TRANSCRIBE_SCRIPT" -o "$OUTPUT_DIR" "${EXTRA_TRANSCRIBE_ARGS[@]}" "$INPUT"
+  TRANSCRIBE_STATUS=$?
+  if [ "$(decide_transcribe_outcome "$TRANSCRIBE_STATUS")" = "fallback" ]; then
+    # 動画としては処理できなかった（例: テキストのみの投稿）→ 記事処理にフォールバック
+    echo "動画としては処理できませんでした。記事として処理します..."
+    RUN_TRANSCRIBE=false
+  elif [ "$TRANSCRIBE_STATUS" != "0" ]; then
     echo "文字起こしでエラーが発生しました（一部失敗の可能性あり）。"
     echo "成功分のノート変換を続行します..."
   fi
-else
+fi
+
+if [ "$RUN_TRANSCRIBE" = false ]; then
   echo "モード: ドキュメント変換（MarkItDown）"
   if ! nice -n 10 "$HOME/scripts/.venv/bin/python3" "$CONVERT_SCRIPT" -o "$OUTPUT_DIR" "$INPUT"; then
     echo "ドキュメント変換でエラーが発生しました。"
