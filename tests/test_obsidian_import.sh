@@ -1,6 +1,6 @@
 #!/bin/bash
-# obsidian-import シェルスクリプトのファイル名パース・バリデーションのテスト
-# 実行: bash tests/test_obsidian_import.sh
+# Tests for the obsidian-import shell script's filename parsing/validation
+# Run: bash tests/test_obsidian_import.sh
 
 PASS=0
 FAIL=0
@@ -18,32 +18,32 @@ assert_eq() {
   fi
 }
 
-# --- FILENAME抽出テスト ---
-echo "=== FILENAME抽出 ==="
+# --- FILENAME extraction tests ---
+echo "=== FILENAME extraction ==="
 
 extract_filename() {
   echo "$1" | grep -m1 '^FILENAME: ' | sed 's/^FILENAME: //' | sed 's/^`//;s/`$//'
 }
 
-assert_eq "通常のファイル名" \
-  "テスト.md" \
-  "$(extract_filename "FILENAME: テスト.md")"
+assert_eq "a normal filename" \
+  "test.md" \
+  "$(extract_filename "FILENAME: test.md")"
 
-assert_eq "バッククォート付き" \
-  "テスト.md" \
-  "$(extract_filename 'FILENAME: `テスト.md`')"
+assert_eq "with backticks" \
+  "test.md" \
+  "$(extract_filename 'FILENAME: `test.md`')"
 
-assert_eq "前置テキストがある場合" \
-  "ノート.md" \
-  "$(extract_filename "$(printf '内容を変換しました。\nFILENAME: ノート.md\n---\n本文')")"
+assert_eq "with leading text before it" \
+  "note.md" \
+  "$(extract_filename "$(printf 'Converted the content.\nFILENAME: note.md\n---\nBody')")"
 
-assert_eq "FILENAME行がない場合は空" \
+assert_eq "empty when there is no FILENAME line" \
   "" \
-  "$(extract_filename "ただのテキスト出力")"
+  "$(extract_filename "just plain text output")"
 
-# --- ファイル名バリデーションテスト ---
+# --- Filename validation tests ---
 echo ""
-echo "=== ファイル名バリデーション ==="
+echo "=== Filename validation ==="
 
 validate_filename() {
   local f="$1"
@@ -54,19 +54,19 @@ validate_filename() {
   fi
 }
 
-assert_eq "正常なファイル名" "valid" "$(validate_filename "テスト.md")"
-assert_eq "英語ファイル名" "valid" "$(validate_filename "test-note.md")"
-assert_eq "スペース含むファイル名" "valid" "$(validate_filename "Claude Code まとめ.md")"
-assert_eq "拡張子なし → 拒否" "invalid" "$(validate_filename "テスト")"
-assert_eq ".txt拡張子 → 拒否" "invalid" "$(validate_filename "テスト.txt")"
-assert_eq "パス区切り含む → 拒否" "invalid" "$(validate_filename "../../.zshrc.md")"
-assert_eq "パス区切り含む(絶対パス) → 拒否" "invalid" "$(validate_filename "/etc/passwd.md")"
-assert_eq "..含む → 拒否" "invalid" "$(validate_filename "..test.md")"
-assert_eq "隠しファイル風の..含む → 拒否" "invalid" "$(validate_filename "..zshrc.md")"
+assert_eq "a normal filename" "valid" "$(validate_filename "test.md")"
+assert_eq "an English filename" "valid" "$(validate_filename "test-note.md")"
+assert_eq "a filename with spaces" "valid" "$(validate_filename "Claude Code Summary.md")"
+assert_eq "no extension -> rejected" "invalid" "$(validate_filename "test")"
+assert_eq ".txt extension -> rejected" "invalid" "$(validate_filename "test.txt")"
+assert_eq "contains a path separator -> rejected" "invalid" "$(validate_filename "../../.zshrc.md")"
+assert_eq "contains a path separator (absolute path) -> rejected" "invalid" "$(validate_filename "/etc/passwd.md")"
+assert_eq "contains .. -> rejected" "invalid" "$(validate_filename "..test.md")"
+assert_eq "dotfile-like name containing .. -> rejected" "invalid" "$(validate_filename "..zshrc.md")"
 
-# --- ローカル音声/動画判定テスト ---
+# --- Local audio/video detection tests ---
 echo ""
-echo "=== ローカル音声/動画判定 ==="
+echo "=== Local audio/video detection ==="
 
 is_audio_file() {
   local lower
@@ -77,90 +77,90 @@ is_audio_file() {
 _AUDIO_TMP=$(mktemp -d)
 touch "$_AUDIO_TMP/voice.m4a" "$_AUDIO_TMP/clip.mp4" "$_AUDIO_TMP/doc.pdf" "$_AUDIO_TMP/REC.MP3"
 is_audio_file "$_AUDIO_TMP/voice.m4a" && r=yes || r=no
-assert_eq "音声ファイル(.m4a) → yes" "yes" "$r"
+assert_eq "audio file (.m4a) -> yes" "yes" "$r"
 is_audio_file "$_AUDIO_TMP/clip.mp4" && r=yes || r=no
-assert_eq "動画ファイル(.mp4) → yes" "yes" "$r"
+assert_eq "video file (.mp4) -> yes" "yes" "$r"
 is_audio_file "$_AUDIO_TMP/REC.MP3" && r=yes || r=no
-assert_eq "大文字拡張子(.MP3) → yes" "yes" "$r"
+assert_eq "uppercase extension (.MP3) -> yes" "yes" "$r"
 is_audio_file "$_AUDIO_TMP/doc.pdf" && r=yes || r=no
-assert_eq "非音声(.pdf) → no" "no" "$r"
+assert_eq "non-audio (.pdf) -> no" "no" "$r"
 is_audio_file "$_AUDIO_TMP/missing.mp3" && r=yes || r=no
-assert_eq "存在しないファイル → no" "no" "$r"
+assert_eq "a missing file -> no" "no" "$r"
 is_audio_file "https://youtu.be/abc" && r=yes || r=no
 assert_eq "URL → no" "no" "$r"
 rm -rf "$_AUDIO_TMP"
 
-# --- transcribe.py終了コードの解釈テスト ---
+# --- transcribe.py exit code interpretation tests ---
 echo ""
-echo "=== transcribe.py 終了コードの解釈 ==="
+echo "=== transcribe.py exit code interpretation ==="
 
-# 実体スクリプトから decide_transcribe_outcome を抽出して読み込む（本物を検証）
+# Extract and load decide_transcribe_outcome from the real script (tests the real thing)
 _SI_SCRIPT_FOR_STATUS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/obsidian-import"
 eval "$(awk '/^decide_transcribe_outcome\(\) \{/,/^\}/' "$_SI_SCRIPT_FOR_STATUS")"
 
-assert_eq "終了コード0(成功) → continue" "continue" "$(decide_transcribe_outcome 0)"
-assert_eq "終了コード2(動画でない) → fallback" "fallback" "$(decide_transcribe_outcome 2)"
-assert_eq "終了コード1(エラー) → continue(縮退続行)" "continue" "$(decide_transcribe_outcome 1)"
+assert_eq "exit code 0 (success) -> continue" "continue" "$(decide_transcribe_outcome 0)"
+assert_eq "exit code 2 (not a video) -> fallback" "fallback" "$(decide_transcribe_outcome 2)"
+assert_eq "exit code 1 (error) -> continue (degrade and proceed)" "continue" "$(decide_transcribe_outcome 1)"
 
-# --- シンボリックリンク書き込み拒否テスト ---
+# --- Symlink write rejection tests ---
 echo ""
-echo "=== シンボリックリンク書き込み拒否 ==="
+echo "=== Symlink write rejection ==="
 
-# コピーを持たず、実体スクリプトから write_note を抽出して読み込む（本物を検証）
+# Don't keep a copy; extract and load write_note from the real script (tests the real thing)
 _SI_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/obsidian-import"
 eval "$(awk '/^write_note\(\) \{/,/^\}/' "$_SI_SCRIPT")"
 
 _WN_TMP=$(mktemp -d)
 _WN_SECRET="$_WN_TMP/secret.txt"
 printf 'ORIGINAL\n' > "$_WN_SECRET"
-ln -s "$_WN_SECRET" "$_WN_TMP/evil.md"          # 出力先に .md 名のシンボリックリンク
+ln -s "$_WN_SECRET" "$_WN_TMP/evil.md"          # a symlink named .md at the output path
 write_note "$_WN_TMP" "evil.md" "PWNED" && r=wrote || r=refused
-assert_eq "symlink宛ては拒否(戻り値)" "refused" "$r"
-assert_eq "symlinkリンク先は改変されない" "ORIGINAL" "$(cat "$_WN_SECRET")"
-# 通常ファイルは書ける
+assert_eq "a symlink target is refused (return value)" "refused" "$r"
+assert_eq "the symlink target is unmodified" "ORIGINAL" "$(cat "$_WN_SECRET")"
+# A regular file can be written
 write_note "$_WN_TMP" "normal.md" "HELLO" && r=wrote || r=refused
-assert_eq "通常ファイルは書ける(戻り値)" "wrote" "$r"
-assert_eq "通常ファイルの内容" "HELLO" "$(cat "$_WN_TMP/normal.md")"
-# 既存の通常ファイルは上書きせず連番で保存（P2: 無確認上書き対策）
+assert_eq "a regular file can be written (return value)" "wrote" "$r"
+assert_eq "the regular file's content" "HELLO" "$(cat "$_WN_TMP/normal.md")"
+# An existing regular file isn't overwritten; it's saved under a numbered name (P2: no-confirmation-overwrite defense)
 printf 'KEEP\n' > "$_WN_TMP/dup.md"
 write_note "$_WN_TMP" "dup.md" "NEW"
-assert_eq "既存ファイルは上書きされない" "KEEP" "$(cat "$_WN_TMP/dup.md")"
-assert_eq "新内容は連番ファイルへ" "NEW" "$(cat "$_WN_TMP/dup-1.md")"
-# パストラバーサル名は関数自体でも拒否（多層防御）
+assert_eq "an existing file is not overwritten" "KEEP" "$(cat "$_WN_TMP/dup.md")"
+assert_eq "new content goes to a numbered file" "NEW" "$(cat "$_WN_TMP/dup-1.md")"
+# A path-traversal name is rejected by the function itself too (defense in depth)
 write_note "$_WN_TMP" "../escape.md" "X" && r=wrote || r=refused
-assert_eq "../を含む名前は拒否" "refused" "$r"
+assert_eq "a name containing ../ is rejected" "refused" "$r"
 write_note "$_WN_TMP" "sub/evil.md" "X" && r=wrote || r=refused
-assert_eq "パス区切りを含む名前は拒否" "refused" "$r"
+assert_eq "a name containing a path separator is rejected" "refused" "$r"
 rm -rf "$_WN_TMP"
 
-# --- 本文抽出テスト ---
+# --- Body extraction tests ---
 echo ""
-echo "=== 本文抽出 ==="
+echo "=== Body extraction ==="
 
 extract_content() {
   echo "$1" | sed -n '/^FILENAME: /,$p' | tail -n +2
 }
 
-OUTPUT="$(printf 'コメント行\nFILENAME: テスト.md\n---\ncreated: 2026-01-01\n---\n# 本文')"
+OUTPUT="$(printf 'A comment line\nFILENAME: test.md\n---\ncreated: 2026-01-01\n---\n# Body')"
 CONTENT="$(extract_content "$OUTPUT")"
 
-assert_eq "FILENAME行の前のテキストが除去される" \
+assert_eq "text before the FILENAME line is stripped" \
   "" \
-  "$(echo "$CONTENT" | grep 'コメント行')"
+  "$(echo "$CONTENT" | grep 'A comment line')"
 
-assert_eq "frontmatterが含まれる" \
+assert_eq "frontmatter is included" \
   "---" \
   "$(echo "$CONTENT" | head -1)"
 
-assert_eq "本文が含まれる" \
-  "# 本文" \
+assert_eq "the body is included" \
+  "# Body" \
   "$(echo "$CONTENT" | tail -1)"
 
-# --- 複数FILENAMEブロック抽出テスト ---
+# --- Multiple FILENAME block extraction tests ---
 echo ""
-echo "=== 複数FILENAMEブロック抽出 ==="
+echo "=== Multiple FILENAME block extraction ==="
 
-# シェルスクリプト本体と同じパースロジックを関数化
+# The same parsing logic as the main shell script, extracted into a function
 parse_multi_filename() {
   local output="$1"
   local output_dir="$2"
@@ -196,39 +196,39 @@ ${LINE}"
 
 TMPDIR_TEST=$(mktemp -d)
 
-# テスト: 単一ファイル
-SINGLE_OUTPUT="$(printf 'コメント\nFILENAME: 料理A.md\n---\n# 料理A\n* 材料1')"
+# Test: a single file
+SINGLE_OUTPUT="$(printf 'A comment\nFILENAME: Dish A.md\n---\n# Dish A\n* Ingredient 1')"
 COUNT=$(parse_multi_filename "$SINGLE_OUTPUT" "$TMPDIR_TEST")
-assert_eq "単一ファイル: 件数" "1" "$COUNT"
-assert_eq "単一ファイル: ファイル存在" "true" "$([ -f "$TMPDIR_TEST/料理A.md" ] && echo true || echo false)"
-assert_eq "単一ファイル: 本文含む" "# 料理A" "$(grep '# 料理A' "$TMPDIR_TEST/料理A.md")"
+assert_eq "single file: count" "1" "$COUNT"
+assert_eq "single file: file exists" "true" "$([ -f "$TMPDIR_TEST/Dish A.md" ] && echo true || echo false)"
+assert_eq "single file: body is included" "# Dish A" "$(grep '# Dish A' "$TMPDIR_TEST/Dish A.md")"
 rm -f "$TMPDIR_TEST"/*.md
 
-# テスト: 複数ファイル
-MULTI_OUTPUT="$(printf 'FILENAME: カレー.md\n---\n# カレー\n* 玉ねぎ\n1. 炒める\nFILENAME: サラダ.md\n---\n# サラダ\n* レタス\n1. 盛る')"
+# Test: multiple files
+MULTI_OUTPUT="$(printf 'FILENAME: Curry.md\n---\n# Curry\n* Onion\n1. Saute\nFILENAME: Salad.md\n---\n# Salad\n* Lettuce\n1. Plate it')"
 COUNT=$(parse_multi_filename "$MULTI_OUTPUT" "$TMPDIR_TEST")
-assert_eq "複数ファイル: 件数" "2" "$COUNT"
-assert_eq "複数ファイル: カレー存在" "true" "$([ -f "$TMPDIR_TEST/カレー.md" ] && echo true || echo false)"
-assert_eq "複数ファイル: サラダ存在" "true" "$([ -f "$TMPDIR_TEST/サラダ.md" ] && echo true || echo false)"
-assert_eq "複数ファイル: カレーの内容にサラダが混入しない" "" "$(grep 'サラダ' "$TMPDIR_TEST/カレー.md" 2>/dev/null)"
-assert_eq "複数ファイル: サラダの内容" "# サラダ" "$(grep '# サラダ' "$TMPDIR_TEST/サラダ.md")"
+assert_eq "multiple files: count" "2" "$COUNT"
+assert_eq "multiple files: Curry exists" "true" "$([ -f "$TMPDIR_TEST/Curry.md" ] && echo true || echo false)"
+assert_eq "multiple files: Salad exists" "true" "$([ -f "$TMPDIR_TEST/Salad.md" ] && echo true || echo false)"
+assert_eq "multiple files: Salad doesn't leak into Curry's content" "" "$(grep 'Salad' "$TMPDIR_TEST/Curry.md" 2>/dev/null)"
+assert_eq "multiple files: Salad's content" "# Salad" "$(grep '# Salad' "$TMPDIR_TEST/Salad.md")"
 rm -f "$TMPDIR_TEST"/*.md
 
-# テスト: 不正なファイル名を含む複数ブロック
-MIXED_OUTPUT="$(printf 'FILENAME: 正常.md\n# OK\nFILENAME: ../../evil.md\n# NG\nFILENAME: 正常2.md\n# OK2')"
+# Test: multiple blocks including an invalid filename
+MIXED_OUTPUT="$(printf 'FILENAME: ok.md\n# OK\nFILENAME: ../../evil.md\n# NG\nFILENAME: ok2.md\n# OK2')"
 COUNT=$(parse_multi_filename "$MIXED_OUTPUT" "$TMPDIR_TEST")
-assert_eq "不正ファイル名混在: 有効ファイル数" "2" "$COUNT"
-assert_eq "不正ファイル名混在: evil.md は作られない" "false" "$([ -f "$TMPDIR_TEST/../../evil.md" ] && echo true || echo false)"
+assert_eq "mixed with an invalid filename: valid file count" "2" "$COUNT"
+assert_eq "mixed with an invalid filename: evil.md is not created" "false" "$([ -f "$TMPDIR_TEST/../../evil.md" ] && echo true || echo false)"
 rm -f "$TMPDIR_TEST"/*.md
 
-# テスト: FILENAME行がない出力
-NO_FN_OUTPUT="ただのテキスト出力です"
+# Test: output with no FILENAME line
+NO_FN_OUTPUT="just plain text output"
 COUNT=$(parse_multi_filename "$NO_FN_OUTPUT" "$TMPDIR_TEST")
-assert_eq "FILENAME行なし: 件数0" "0" "$COUNT"
+assert_eq "no FILENAME line: count is 0" "0" "$COUNT"
 
 rm -rf "$TMPDIR_TEST"
 
-# --- 結果 ---
+# --- Results ---
 echo ""
-echo "=== 結果: ${PASS} passed / ${FAIL} failed ==="
+echo "=== Results: ${PASS} passed / ${FAIL} failed ==="
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

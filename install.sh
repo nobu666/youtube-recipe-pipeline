@@ -5,21 +5,21 @@ REPO_DIR="${INSTALL_DIR:-$HOME/repos}/obsidian-import"
 SCRIPTS_DIR="$HOME/scripts"
 VENV_DIR="$SCRIPTS_DIR/.venv"
 
-echo "=== obsidian-import インストール ==="
+echo "=== obsidian-import install ==="
 
-# 依存ツール
+# Dependencies
 echo ""
-echo "--- brew パッケージ ---"
+echo "--- brew packages ---"
 brew install yt-dlp ffmpeg python@3.12 2>/dev/null || brew upgrade yt-dlp ffmpeg python@3.12 2>/dev/null || true
 
-# リポジトリ
+# Repository
 echo ""
-echo "--- リポジトリ ---"
+echo "--- Repository ---"
 if [ -d "$REPO_DIR/.git" ]; then
-  echo "既存のリポジトリを更新..."
+  echo "Updating the existing repository..."
   git -C "$REPO_DIR" pull
 else
-  echo "クローン中..."
+  echo "Cloning..."
   mkdir -p "$(dirname "$REPO_DIR")"
   git clone https://github.com/nobu666/obsidian-import.git "$REPO_DIR"
 fi
@@ -30,28 +30,29 @@ echo "--- Python venv ---"
 if [ ! -d "$VENV_DIR" ]; then
   python3.12 -m venv "$VENV_DIR"
 fi
-# 直接依存はバージョン固定（再現性・供給網対策。更新は意図的に bump する）。
-# markitdown は [all] ではなく実際に扱う型に必要な extra だけに絞り、
-# Azure SDK 等の不要依存（攻撃面）を入れない。
+# Direct dependencies are version-pinned (reproducibility / supply-chain hygiene;
+# updates are bumped deliberately). markitdown installs only the extras needed for
+# the types this tool actually handles rather than [all], to avoid pulling in
+# unnecessary dependencies (attack surface) like the Azure SDK.
 "$VENV_DIR/bin/pip" install -q \
   "mlx-whisper==0.4.3" \
   "markitdown[pdf,docx,pptx,xlsx,xls,audio-transcription]==0.1.6"
 
-# シンボリックリンク
+# Symlinks
 echo ""
-echo "--- シンボリックリンク ---"
+echo "--- Symlinks ---"
 mkdir -p "$SCRIPTS_DIR"
 ln -sf "$REPO_DIR/obsidian-import" "$SCRIPTS_DIR/obsidian-import"
 ln -sf "$REPO_DIR/transcribe.py" "$SCRIPTS_DIR/transcribe.py"
 ln -sf "$REPO_DIR/convert.py" "$SCRIPTS_DIR/convert.py"
 
-# Claude Code スキル
+# Claude Code skill
 echo ""
-echo "--- Claude Code スキル ---"
+echo "--- Claude Code skill ---"
 mkdir -p "$HOME/.claude/commands"
 cp "$REPO_DIR/SKILL.md" "$HOME/.claude/commands/obsidian-import.md"
 
 echo ""
-echo "=== 完了 ==="
-echo "使い方: ~/scripts/obsidian-import <URL or file>"
-echo "スキル: Claude Code で /obsidian-import"
+echo "=== Done ==="
+echo "Usage: ~/scripts/obsidian-import <URL or file>"
+echo "Skill: /obsidian-import in Claude Code"

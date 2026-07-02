@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""SSRF対策の共有ガード。
+"""Shared SSRF-defense guard.
 
-外部URLをfetchする前に検証する。スキームを http/https に限定し、
-ホスト名をDNS解決して private / loopback / link-local / reserved 等の
-内部向けIPを全てブロックする。これにより以下を弾く:
+Validates a URL before fetching it externally. Restricts the scheme to
+http/https, resolves the hostname via DNS, and blocks any internal-facing
+IP (private / loopback / link-local / reserved, etc). This blocks:
 
-- クラウドメタデータ: http://169.254.169.254/ (link-local)
+- Cloud metadata: http://169.254.169.254/ (link-local)
 - localhost / 127.0.0.1 / ::1 (loopback)
 - LAN: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 (private)
-- file:// / ftp:// 等の非HTTPスキーム
+- Non-HTTP schemes such as file:// / ftp://
 
-注意（残留リスク）: DNS解決時のIPと実接続時のIPがずれる DNS rebinding は
-本ガードでは完全には防げない（解決→検査→各ライブラリが再解決して接続するため）。
-requests 経路は safe_head() でリダイレクトを手動追跡し各ホップを再検証するが、
-trafilatura / playwright / markitdown の内部リダイレクトは入口検証のみ。
+Note (residual risk): DNS rebinding — where the IP resolved at check time
+differs from the IP used at connect time — isn't fully preventable by this
+guard alone (resolve -> check -> each library re-resolves and connects).
+The requests path mitigates this via safe_head(), which manually follows
+redirects and re-validates each hop; trafilatura / playwright / markitdown's
+internal redirects are only validated at the entry point.
 """
 
 import ipaddress
@@ -24,14 +26,14 @@ ALLOWED_SCHEMES = {"http", "https"}
 
 
 class UnsafeURLError(ValueError):
-    """SSRF的に危険なURLを拒否したことを表す例外。"""
+    """Raised when a URL is rejected as SSRF-unsafe."""
 
 
 def _ip_is_blocked(ip_str):
     ip = ipaddress.ip_address(ip_str)
-    # IPv4-mapped IPv6 (::ffff:a.b.c.d) は内側のIPv4で判定する。
-    # Python<3.13 では IPv6Address("::ffff:127.0.0.1").is_private が False を返す不備があり、
-    # 明示的に展開しないと内部IPを取りこぼす。
+    # For an IPv4-mapped IPv6 address (::ffff:a.b.c.d), judge by the inner IPv4.
+    # On Python < 3.13, IPv6Address("::ffff:127.0.0.1").is_private incorrectly
+    # returns False, so without this explicit unwrap an internal IP would slip through.
     if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
         ip = ip.ipv4_mapped
     return (
@@ -45,52 +47,55 @@ def _ip_is_blocked(ip_str):
 
 
 def assert_safe_url(url):
-    """url が外部fetch可能か検証する。危険なら UnsafeURLError を送出。
+    """Validate that url is safe to fetch externally. Raises UnsafeURLError if not.
 
-    成功時は (scheme, host, [resolved_ips]) を返す。
+    On success, returns (scheme, host, [resolved_ips]).
     """
     parsed = urlparse(url)
     scheme = (parsed.scheme or "").lower()
     if scheme not in ALLOWED_SCHEMES:
-        raise UnsafeURLError(f"許可されないスキーム: {scheme or '(なし)'} ({url})")
+        raise UnsafeURLError(f"Disallowed scheme: {scheme or '(none)'} ({url})")
 
     host = parsed.hostname
     if not host:
-        raise UnsafeURLError(f"ホスト名がありません: {url}")
+        raise UnsafeURLError(f"No hostname: {url}")
 
-    # libc(inet_aton)系クライアント（Chromium/一部HTTPライブラリ）は 8進/16進/10進の
-    # 数値IPv4を getaddrinfo と異なる解釈で接続しうる。パーサ差分によるSSRFを塞ぐため、
-    # ホストが数値IPv4リテラルとして解釈可能なら、その解釈でのIPもブロック判定する。
+    # libc(inet_aton)-based clients (Chromium / some HTTP libraries) may connect
+    # using an octal/hex/decimal numeric IPv4 interpretation that differs from
+    # getaddrinfo's. To close this parser-differential SSRF, if the host can be
+    # parsed as a numeric IPv4 literal, also judge the block-list against that
+    # interpretation's IP.
     try:
         aton_ip = socket.inet_ntoa(socket.inet_aton(host))
     except OSError:
         aton_ip = None
     if aton_ip and _ip_is_blocked(aton_ip):
-        raise UnsafeURLError(f"内部向けIP(数値表記)へのアクセスをブロック: {host} -> {aton_ip}")
+        raise UnsafeURLError(f"Blocked access to an internal IP (numeric notation): {host} -> {aton_ip}")
 
     try:
         port = parsed.port
     except ValueError:
-        raise UnsafeURLError(f"不正なポート: {url}")
+        raise UnsafeURLError(f"Invalid port: {url}")
     port = port or (443 if scheme == "https" else 80)
 
-    # ホスト名をDNS解決し、全解決IPを検査（複数A/AAAAレコード対策）
+    # Resolve the hostname via DNS and check every resolved IP (guards against multiple A/AAAA records)
     try:
         infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
     except socket.gaierror as e:
-        raise UnsafeURLError(f"ホスト名を解決できません: {host} ({e})")
+        raise UnsafeURLError(f"Couldn't resolve the hostname: {host} ({e})")
 
     ips = sorted({info[4][0] for info in infos})
     for ip in ips:
         if _ip_is_blocked(ip):
-            raise UnsafeURLError(f"内部向けIPへのアクセスをブロック: {host} -> {ip}")
+            raise UnsafeURLError(f"Blocked access to an internal IP: {host} -> {ip}")
     return scheme, host, ips
 
 
 def safe_head(url, *, max_redirects=5, timeout=10):
-    """requests.head 相当。リダイレクトを手動追跡し、各ホップで assert_safe_url する。
+    """Equivalent to requests.head, but manually follows redirects and calls
+    assert_safe_url at each hop.
 
-    最終的な requests.Response を返す。危険なホップに到達したら UnsafeURLError。
+    Returns the final requests.Response. Raises UnsafeURLError if an unsafe hop is reached.
     """
     import requests
 
@@ -105,4 +110,4 @@ def safe_head(url, *, max_redirects=5, timeout=10):
             current = urljoin(current, loc)
             continue
         return resp
-    raise UnsafeURLError(f"リダイレクトが多すぎます: {url}")
+    raise UnsafeURLError(f"Too many redirects: {url}")
