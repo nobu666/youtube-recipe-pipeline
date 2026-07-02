@@ -1,12 +1,12 @@
 # CLAUDE.md
 
-YouTube動画・Web記事・ドキュメント（PDF/スライド等）をObsidianの構造化ノートに自動変換するツール。
+動画（YouTube・TikTok・Instagram・X動画等 yt-dlp対応サイト全般）・Web記事・ドキュメント（PDF/スライド等）をObsidianの構造化ノートに自動変換するツール。
 
 ## プロジェクト構成
 
 ```
 obsidian-import        # メインスクリプト（bashラッパー、claude -p を呼ぶ）
-transcribe.py          # YouTube文字起こし / Web記事テキスト抽出
+transcribe.py          # 動画文字起こし（yt-dlp対応サイト全般） / Web記事テキスト抽出
 convert.py             # ドキュメント変換（MarkItDown: PDF, PPTX, DOCX, URL等）
 prompts/               # プロンプトファイル（-p オプションで切り替え）
 tests/                 # pytest テスト

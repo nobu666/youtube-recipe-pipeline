@@ -1,6 +1,6 @@
 # obsidian-import
 
-YouTube動画・Web記事・ドキュメント（PDF/スライド等）をObsidianの構造化ノートに自動変換するツール。プロンプトを切り替えることで、レシピ・講義ノート・トレーニングメニュー・ツール解説・記事要約など様々な形式に対応。
+動画（YouTube・TikTok・Instagram・Xほかyt-dlp対応サイト全般）・Web記事・ドキュメント（PDF/スライド等）をObsidianの構造化ノートに自動変換するツール。プロンプトを切り替えることで、レシピ・講義ノート・トレーニングメニュー・ツール解説・記事要約など様々な形式に対応。
 
 ## インストール
 
@@ -28,7 +28,10 @@ brew（yt-dlp, ffmpeg）、Python venv（mlx-whisper, markitdown）、シンボ�
 
 1. **YouTube URL** → `transcribe.py` で字幕/Whisper文字起こし → Claude CLI でノート化
 2. **ローカルの音声/動画ファイル**（.mp3/.m4a/.wav/.mp4/.mov 等）→ `transcribe.py` で Whisper文字起こし → Claude CLI でノート化
-3. **それ以外のURL・ファイル** → `convert.py`（MarkItDown）でMarkdown化 → Claude CLI でノート化
+3. **その他の動画URL（yt-dlp対応サイト全般）** → YouTube以外は `transcribe.py --probe` で動画サイトか判定し、動画なら字幕/Whisper文字起こし → Claude CLI でノート化。TikTok・Instagram・X動画・ニコニコ・Vimeo等、yt-dlpが対応するサイトはこの経路に入る
+4. **それ以外のURL・ファイル**（記事ページ等）→ `convert.py`（MarkItDown）でMarkdown化 → Claude CLI でノート化
+
+字幕優先・Whisperフォールバックの優先順位はYouTube・非YouTubeで共通。ただし長尺動画のWhisper負荷を避けるため `WHISPER_MAX_MINUTES`（デフォルト20分）を超える動画はWhisperをスキップし、説明欄にフォールバックする（`WHISPER_MAX_MINUTES=0` で無制限）。
 
 ## 使い方
 
@@ -45,9 +48,15 @@ brew（yt-dlp, ffmpeg）、Python venv（mlx-whisper, markitdown）、シンボ�
 # 出力先を一時的に上書き
 ~/scripts/obsidian-import -p tool -o ~/notes https://www.youtube.com/watch?v=XXXXX
 
-# Web記事（デフォルトプロンプト: article）
+# YouTube以外の動画（TikTok, Instagram, X動画, ニコニコ, Vimeo等。yt-dlp対応サイト全般）
+~/scripts/obsidian-import https://www.tiktok.com/@user/video/XXXXX
+
+# Web記事（デフォルトプロンプト: article。テキストのみの投稿はこちらに自動フォールバックする）
 ~/scripts/obsidian-import https://x.com/user/status/XXXXX
 ~/scripts/obsidian-import https://example.com/blog/post
+
+# Whisperをスキップする動画の長さ上限を変更（デフォルト20分、0で無制限）
+WHISPER_MAX_MINUTES=40 ~/scripts/obsidian-import https://www.tiktok.com/@user/video/XXXXX
 
 # Google Docs / Slideshare / Web上のPDF
 ~/scripts/obsidian-import https://docs.google.com/document/d/XXXXX
@@ -180,9 +189,15 @@ cp ~/repos/obsidian-import/SKILL.md ~/.claude/commands/obsidian-import.md
 ## 注意点
 
 - mlx-whisper は Apple Silicon 専用。Intel Mac では動かない
-- YouTube文字起こしは字幕（手動→自動生成）を優先取得する。字幕がない動画のみ Whisper large-v3-turbo（約3GB）にフォールバック
+- 動画文字起こしは字幕（手動→自動生成）を優先取得する。字幕がない動画のみ Whisper large-v3-turbo（約3GB）にフォールバック。ただし `WHISPER_MAX_MINUTES`（デフォルト20分）を超える動画はWhisperをスキップし説明欄にフォールバックする
 - Whisperのハルシネーション（同一フレーズの繰り返し）は自動検出し、説明欄でフォールバックする
 - ローカルの音声/動画ファイルは Whisper（mlx・日本語特化）で文字起こしする。`.mp3/.m4a/.wav` 等は MarkItDown より Whisper を優先
 - ドキュメント変換は MarkItDown を使用。PDF, PPTX, DOCX, XLSX, 画像, URL に対応
 - 処理済みのソースはスキップされるので、中断しても再開可能
 - `MallocStackLogging` の警告が出ることがあるが無害
+
+### 動画が取得できないとき
+
+- 動画サイト側の仕様変更にyt-dlpの追従が遅れていることが多い。まず更新する: `brew upgrade yt-dlp`（取得失敗時は自動でこのヒントを表示する）
+- 年齢制限・メンバー限定・ログイン必須の動画は非対応（ブラウザCookie経由の認証は未対応）
+- TVer等のDRM付き配信は対象外。どうしても取り込みたい場合は、BlackHole等でシステム音声を録音し、`~/scripts/obsidian-import <録音ファイル>` としてローカル音声ファイル経由で処理する
