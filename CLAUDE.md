@@ -1,56 +1,56 @@
 # CLAUDE.md
 
-動画（YouTube・TikTok・Instagram・X動画等 yt-dlp対応サイト全般）・Web記事・ドキュメント（PDF/スライド等）をObsidianの構造化ノートに自動変換するツール。
+A tool that automatically converts videos (YouTube, TikTok, Instagram, X video, and any other yt-dlp-supported site), web articles, and documents (PDF/slides, etc.) into structured Obsidian notes.
 
-## プロジェクト構成
+## Project layout
 
 ```
-obsidian-import        # メインスクリプト（bashラッパー、claude -p を呼ぶ）
-transcribe.py          # 動画文字起こし（yt-dlp対応サイト全般） / Web記事テキスト抽出
-convert.py             # ドキュメント変換（MarkItDown: PDF, PPTX, DOCX, URL等）
-prompts/               # プロンプトファイル（-p オプションで切り替え）
-tests/                 # pytest テスト
-install.sh             # curl一発セットアップ
-SKILL.md               # Claude Code スキル定義
+obsidian-import        # Main script (a bash wrapper that calls claude -p)
+transcribe.py          # Video transcription (any yt-dlp-supported site) / web article text extraction
+convert.py             # Document conversion (MarkItDown: PDF, PPTX, DOCX, URL, etc.)
+prompts/               # Prompt files (switched via the -p option)
+tests/                 # pytest tests
+install.sh             # One-shot curl setup
+SKILL.md               # Claude Code skill definition
 ```
 
-## インストール・シンボリックリンク
+## Install / symlinks
 
-`install.sh` が以下を作成する:
-- `~/scripts/obsidian-import` → このリポジトリの `obsidian-import`
-- `~/scripts/transcribe.py` → このリポジトリの `transcribe.py`
-- `~/scripts/convert.py` → このリポジトリの `convert.py`
-- `~/scripts/.venv/` — Python venv（mlx-whisper, markitdown 等）
+`install.sh` creates:
+- `~/scripts/obsidian-import` -> this repo's `obsidian-import`
+- `~/scripts/transcribe.py` -> this repo's `transcribe.py`
+- `~/scripts/convert.py` -> this repo's `convert.py`
+- `~/scripts/.venv/` — a Python venv (mlx-whisper, markitdown, etc.)
 
-## テスト
+## Tests
 
 ```bash
-~/scripts/.venv/bin/python3 -m pytest tests/ -v   # Python テスト
-bash tests/test_obsidian_import.sh                 # シェルスクリプトのパース・バリデーションテスト
+~/scripts/.venv/bin/python3 -m pytest tests/ -v   # Python tests
+bash tests/test_obsidian_import.sh                 # Shell script parsing/validation tests
 ```
 
-外部依存（yt-dlp, mlx-whisper, ファイルシステム）はすべてモック。mlx-whisper は Apple Silicon 専用のため CI 上ではインストールしない。
+External dependencies (yt-dlp, mlx-whisper, the filesystem) are all mocked. mlx-whisper is Apple Silicon only, so it isn't installed in CI.
 
-## セキュリティモデル
+## Security model
 
-外部コンテンツ（URL・ファイル・字幕）を処理するため多層防御を採用。**詳細は README.md のセキュリティモデルを参照**。要点:
+Uses layered defenses since it handles external content (URLs, files, subtitles). **See README.md's security model for details.** Key points:
 
-- **プロンプトインジェクション**: `claude -p` をツールなし実行／書き込みはシェル側で `OUTPUT_DIR` 配下のみ／ファイル名検証（`.md`・パス区切りなし・`..` なし）／外部コンテンツは `<transcript>` で境界明示
-- **SSRF**: `url_guard.py`（http/https限定＋解決IPの内部帯ブロック＋数値IP/IPv4-mapped差分封鎖、リダイレクト各ホップ再検証）を全fetch経路に適用
-- **リソース枯渇/ローカル**: zip爆弾検査（中身がZIPなら展開前に上限チェック）／一時dirは `mkdtemp`(0700)／`write_note` は symlink拒否・既存上書きせず連番・パストラバーサル拒否
+- **Prompt injection**: `claude -p` runs without tools / the shell writes only under `OUTPUT_DIR` / filename validation (`.md`, no path separator, no `..`) / external content has an explicit `<transcript>` boundary
+- **SSRF**: `url_guard.py` (restricted to http/https + blocks internal-facing resolved IPs + closes numeric-IP/IPv4-mapped parser gaps + re-validates every redirect hop) is applied to every fetch path
+- **Resource exhaustion / local**: zip bomb inspection (if the content is a ZIP, check limits before extraction) / the temp dir uses `mkdtemp` (0700) / `write_note` refuses a symlink, never overwrites (uses a numbered name instead), and rejects path traversal
 
-## 【MUST】push 前のセキュリティレビュー
+## 【MUST】Security review before push
 
-外部コンテンツ（URL・ファイル・動画字幕）を処理するツールのため、**コードを変更したら push する前に必ずセキュリティレビューを行う**こと。
+Since this tool handles external content (URLs, files, video subtitles), **you must always run a security review before pushing a code change**.
 
-- 変更差分（`git diff <base>..HEAD`）を対象に、Subagent または `/differential-review` スキルで観点別にレビューする
-- 重点観点: **SSRF**（URL fetch 経路）、**コマンドインジェクション**（yt-dlp/subprocess）、**パストラバーサル**（書き込み先・ファイル名）、**プロンプトインジェクション**（`claude -p` への外部入力）、**リソース枯渇**（zip/アーカイブ爆弾・巨大入力）、**一時ファイルの先取り**（symlink/TOCTOU）
-- **Critical/High が残っている間は push しない**。Low/Medium は受容するなら理由を明記する
-- レビュー後、テスト（pytest + シェル）が全パスすることを確認してから push する
+- Review the diff (`git diff <base>..HEAD`) by dimension, using a Subagent or the `/differential-review` skill
+- Focus areas: **SSRF** (URL fetch paths), **command injection** (yt-dlp/subprocess), **path traversal** (write destinations/filenames), **prompt injection** (external input into `claude -p`), **resource exhaustion** (zip/archive bombs, huge inputs), **temp-file pre-planting** (symlink/TOCTOU)
+- **Don't push while a Critical/High finding remains.** For a Low/Medium you choose to accept, document why
+- After the review, confirm all tests (pytest + shell) pass before pushing
 
-## 注意事項
+## Notes
 
-- `mlx-whisper` を `openai-whisper` に差し替えないこと（Apple Silicon 最適化が前提）
-- プロンプトファイルは `output_dir:` ヘッダ + `---` + 本文の形式
-- プロンプト内で `FILENAME: ファイル名.md` 形式の出力を指示すること（シェルスクリプトがパースする）
-- コメントとプロンプトは日本語で書くこと
+- Don't replace `mlx-whisper` with `openai-whisper` (Apple Silicon optimization is a hard requirement)
+- Prompt files use the format: `output_dir:` header + `---` + body
+- A prompt must instruct the `FILENAME: name.md` output format (the shell script parses it)
+- Write comments and prompts in English

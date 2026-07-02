@@ -15,7 +15,7 @@ def override_dirs(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _stub_dns(monkeypatch):
-    # SSRFガードのDNS解決をスタブ化し、テストを実ネットワークから切り離す（公開IP扱い）
+    # Stub the SSRF guard's DNS resolution so tests are isolated from the real network (treated as a public IP)
     import socket
     monkeypatch.setattr(
         "url_guard.socket.getaddrinfo",
@@ -75,7 +75,7 @@ class TestTitleFromUrl:
 
 
 class TestConvert:
-    def _mock_markitdown(self, monkeypatch, text="これはテスト用のMarkdown変換結果です。十分な長さのテキストが必要です。"):
+    def _mock_markitdown(self, monkeypatch, text="This is a test Markdown conversion result. It needs to be long enough."):
         mock_md = MagicMock()
         mock_result = MagicMock()
         mock_result.text_content = text
@@ -127,7 +127,7 @@ class TestConvert:
         assert convert.convert("https://example.com/empty.pdf", tmp_path) is False
 
     def test_short_content(self, monkeypatch, tmp_path):
-        self._mock_markitdown(monkeypatch, text="短い")
+        self._mock_markitdown(monkeypatch, text="short")
         assert convert.convert("https://example.com/short.pdf", tmp_path) is False
 
     def test_none_content(self, monkeypatch, tmp_path):
@@ -192,7 +192,7 @@ class TestMain:
     def test_success(self, monkeypatch, tmp_path):
         mock_md = MagicMock()
         mock_result = MagicMock()
-        mock_result.text_content = "変換されたMarkdownテキストです。十分な長さが必要なのでもう少し書きます。"
+        mock_result.text_content = "This is the converted Markdown text. It needs to be long enough, so here's a bit more."
         mock_md.convert.return_value = mock_result
         monkeypatch.setattr(convert, "MarkItDown", lambda: mock_md)
         monkeypatch.setattr(sys, "argv", ["convert.py", "-o", str(tmp_path), "https://example.com/doc.pdf"])
@@ -206,7 +206,7 @@ class TestZipBomb:
         import zipfile
         bomb = tmp_path / "bomb.zip"
         with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr("big.txt", b"\0" * (5 * 1024 * 1024))  # 5MBのゼロ→高圧縮比
+            zf.writestr("big.txt", b"\0" * (5 * 1024 * 1024))  # 5MB of zeros -> a high compression ratio
         assert convert.check_zip_safe(str(bomb)) is not None
 
     def test_rejects_too_many_entries(self, tmp_path):
@@ -229,15 +229,15 @@ class TestZipBomb:
         bomb = tmp_path / "bomb.zip"
         with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("big.txt", b"\0" * (5 * 1024 * 1024))
-        # MarkItDownを触る前に弾く（呼ばれたら失敗させる）
-        monkeypatch.setattr(convert, "MarkItDown", lambda: (_ for _ in ()).throw(AssertionError("zipは展開前に弾くべき")))
+        # Reject before ever touching MarkItDown (fail the test if it's called)
+        monkeypatch.setattr(convert, "MarkItDown", lambda: (_ for _ in ()).throw(AssertionError("a zip should be rejected before extraction")))
         assert convert.convert(str(bomb), tmp_path) is False
 
     def test_convert_rejects_ooxml_bomb_by_content(self, tmp_path, monkeypatch):
-        # docx 拡張子でも中身がzip爆弾なら弾く（OOXMLはZIPコンテナ）
+        # Reject a zip bomb even with a .docx extension (OOXML is a ZIP container)
         import zipfile
         bomb = tmp_path / "evil.docx"
         with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("word/document.xml", b"\0" * (5 * 1024 * 1024))
-        monkeypatch.setattr(convert, "MarkItDown", lambda: (_ for _ in ()).throw(AssertionError("展開前に弾くべき")))
+        monkeypatch.setattr(convert, "MarkItDown", lambda: (_ for _ in ()).throw(AssertionError("should be rejected before extraction")))
         assert convert.convert(str(bomb), tmp_path) is False

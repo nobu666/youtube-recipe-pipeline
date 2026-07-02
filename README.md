@@ -1,203 +1,213 @@
 # obsidian-import
 
-動画（YouTube・TikTok・Instagram・Xほかyt-dlp対応サイト全般）・Web記事・ドキュメント（PDF/スライド等）をObsidianの構造化ノートに自動変換するツール。プロンプトを切り替えることで、レシピ・講義ノート・トレーニングメニュー・ツール解説・記事要約など様々な形式に対応。
+A tool that automatically converts videos (YouTube, TikTok, Instagram, X, and any other yt-dlp-supported site), web articles, and documents (PDF/slides, etc.) into structured Obsidian notes. Switching prompts adapts the output to different formats: recipes, lecture notes, workout menus, tool explainers, article summaries, and more.
 
-## インストール
+## Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nobu666/obsidian-import/main/install.sh | bash
 
-# クローン先を変えたい場合
+# To clone somewhere else
 INSTALL_DIR=~/projects curl -fsSL https://raw.githubusercontent.com/nobu666/obsidian-import/main/install.sh | bash
 ```
 
-brew（yt-dlp, ffmpeg）、Python venv（mlx-whisper, markitdown）、シンボリックリンク、Claude Code スキルまで一括セットアップ。既存環境では更新のみ行う。デフォルトのクローン先は `~/repos/obsidian-import`。
+Sets up brew (yt-dlp, ffmpeg), a Python venv (mlx-whisper, markitdown), symlinks, and the Claude Code skill in one go. On an existing setup it just updates. Default clone location: `~/repos/obsidian-import`.
 
-### 前提
+### Requirements
 
-- macOS（Apple Silicon）
+- macOS (Apple Silicon)
 - Python 3.10+
-- [Claude Code](https://docs.claude.com/en/docs/claude-code) (`claude` コマンド)
-- Obsidian Vault（ノートの保存先）
+- [Claude Code](https://docs.claude.com/en/docs/claude-code) (the `claude` command)
+- An Obsidian Vault (where notes are saved)
 
-出力先を変更する場合は、各プロンプトファイル（`prompts/*.txt`）の `output_dir:` ヘッダを編集する。
+To change the output location, edit the `output_dir:` header in the relevant prompt file (`prompts/*.txt`).
 
-## 仕組み
+## How it works
 
-入力ソースに応じて自動でルーティングする:
+Routes automatically based on the input source:
 
-1. **YouTube URL** → `transcribe.py` で字幕/Whisper文字起こし → Claude CLI でノート化
-2. **ローカルの音声/動画ファイル**（.mp3/.m4a/.wav/.mp4/.mov 等）→ `transcribe.py` で Whisper文字起こし → Claude CLI でノート化
-3. **その他の動画URL（yt-dlp対応サイト全般）** → YouTube以外は `transcribe.py --probe` で動画サイトか判定し、動画なら字幕/Whisper文字起こし → Claude CLI でノート化。TikTok・Instagram・X動画・ニコニコ・Vimeo等、yt-dlpが対応するサイトはこの経路に入る
-4. **それ以外のURL・ファイル**（記事ページ等）→ `convert.py`（MarkItDown）でMarkdown化 → Claude CLI でノート化
+1. **YouTube URL** -> `transcribe.py` transcribes it (subtitles/Whisper) -> the Claude CLI turns it into a note
+2. **Local audio/video file** (.mp3/.m4a/.wav/.mp4/.mov, etc.) -> `transcribe.py` transcribes it with Whisper -> the Claude CLI turns it into a note
+3. **Any other video URL (any yt-dlp-supported site)** -> for non-YouTube URLs, `transcribe.py --probe` judges whether it's a video site; if so, it's transcribed (subtitles/Whisper) -> the Claude CLI turns it into a note. TikTok, Instagram, X video, Niconico, Vimeo, and any other site yt-dlp supports go through this path
+4. **Anything else** (an article page, etc.) -> `convert.py` (MarkItDown) converts it to Markdown -> the Claude CLI turns it into a note
 
-字幕優先・Whisperフォールバックの優先順位はYouTube・非YouTubeで共通。ただし長尺動画のWhisper負荷を避けるため `WHISPER_MAX_MINUTES`（デフォルト20分）を超える動画はWhisperをスキップし、説明欄にフォールバックする（`WHISPER_MAX_MINUTES=0` で無制限）。
+The subtitles-first, Whisper-as-fallback priority is the same for YouTube and non-YouTube. To avoid the load of running Whisper on long videos, though, any video longer than `WHISPER_MAX_MINUTES` (default 20 minutes) skips Whisper and falls back to the description (`WHISPER_MAX_MINUTES=0` for unlimited).
 
-## 使い方
+## Usage
 
 ```bash
-# YouTube動画（プロンプト自動選択）
+# A YouTube video (prompt auto-selected)
 ~/scripts/obsidian-import https://www.youtube.com/watch?v=XXXXX
 
-# プロンプトを明示的に指定（自動分類をスキップ）
+# Specify a prompt explicitly (skips auto-classification)
 ~/scripts/obsidian-import -p recipe https://www.youtube.com/watch?v=XXXXX
 
-# 再生リスト（各動画を自動分類して振り分け）
+# A playlist (each video is auto-classified and routed)
 ~/scripts/obsidian-import https://www.youtube.com/playlist?list=XXXXX
 
-# 出力先を一時的に上書き
+# Temporarily override the output directory
 ~/scripts/obsidian-import -p tool -o ~/notes https://www.youtube.com/watch?v=XXXXX
 
-# YouTube以外の動画（TikTok, Instagram, X動画, ニコニコ, Vimeo等。yt-dlp対応サイト全般）
+# A non-YouTube video (TikTok, Instagram, X video, Niconico, Vimeo, etc. — any yt-dlp-supported site)
 ~/scripts/obsidian-import https://www.tiktok.com/@user/video/XXXXX
 
-# Web記事（デフォルトプロンプト: article。テキストのみの投稿はこちらに自動フォールバックする）
+# A web article (default prompt: article — a text-only post automatically falls back here)
 ~/scripts/obsidian-import https://x.com/user/status/XXXXX
 ~/scripts/obsidian-import https://example.com/blog/post
 
-# Whisperをスキップする動画の長さ上限を変更（デフォルト20分、0で無制限）
+# Change the length limit at which Whisper is skipped (default 20 min, 0 = unlimited)
 WHISPER_MAX_MINUTES=40 ~/scripts/obsidian-import https://www.tiktok.com/@user/video/XXXXX
 
-# Google Docs / Slideshare / Web上のPDF
+# Google Docs / Slideshare / a PDF on the web
 ~/scripts/obsidian-import https://docs.google.com/document/d/XXXXX
 ~/scripts/obsidian-import https://www.slideshare.net/user/slides
 
-# ローカルファイル（PDF, PPTX, DOCX等）
+# A local file (PDF, PPTX, DOCX, etc.)
 ~/scripts/obsidian-import ~/Downloads/slides.pdf
 
-# ローカルの音声/動画ファイル（Whisperで文字起こし）
+# A local audio/video file (transcribed with Whisper)
 ~/scripts/obsidian-import ~/Downloads/voice-memo.m4a
 ~/scripts/obsidian-import ~/Downloads/recording.mp4
 
-# テキスト取得だけ（ノート変換なし）
+# Just extract the text (no note conversion)
 ~/scripts/.venv/bin/python3 ~/scripts/transcribe.py https://www.youtube.com/watch?v=XXXXX
 ~/scripts/.venv/bin/python3 ~/scripts/convert.py https://example.com/paper.pdf
 ```
 
-## プロンプト一覧
+## Prompts
 
-各プロンプトは `prompts/` ディレクトリに格納。`output_dir:` ヘッダでプロンプトごとに出力先が決まる（フォルダは自動作成）。
+Each prompt lives in the `prompts/` directory. The `output_dir:` header decides where that prompt's notes go (the folder is created automatically).
 
-| プロンプト | 用途 | 出力先 |
+| Prompt | Use | Output |
 |---|---|---|
-| `default` | YouTube汎用（構造化ノート） | `Vault/YouTube/` |
-| `recipe` | 料理動画 → レシピ | `Vault/YouTube/レシピ/` |
-| `lecture` | 講義・セミナー → 要約ノート | `Vault/YouTube/講義/` |
-| `workout` | 筋トレ・ヨガ → メニュー表 | `Vault/YouTube/トレーニング/` |
-| `tool` | ツール解説 → 手順書 | `Vault/YouTube/ツール/` |
-| `article` | Web記事・ドキュメント → 日本語要約ノート | `Vault/記事/` |
+| `default` | General-purpose YouTube (a structured note) | `Vault/YouTube/` |
+| `recipe` | A cooking video -> a recipe | `Vault/YouTube/レシピ/` |
+| `lecture` | A talk/seminar -> a summary note | `Vault/YouTube/講義/` |
+| `workout` | Strength training/yoga -> a menu table | `Vault/YouTube/トレーニング/` |
+| `tool` | A tool explainer -> a how-to | `Vault/YouTube/ツール/` |
+| `article` | A web article/document -> a summary note | `Vault/記事/` |
 
-`-p` 未指定時は各トランスクリプトの冒頭をClaudeに送って自動分類し、最適なプロンプトと出力先を自動選択する（例: 料理動画→`recipe`、講義→`lecture`）。プレイリストに異なるジャンルの動画が混在していても自動で振り分けられる。
+When `-p` isn't given, the beginning of each transcript is sent to Claude for auto-classification, which picks the best prompt and output location (e.g. a cooking video -> `recipe`, a lecture -> `lecture`). Even if a playlist mixes different genres of video, each one is routed automatically.
 
-`prompts/` にファイルを追加すればさらに用途を増やせる。
+Add a file to `prompts/` to support more use cases.
 
-### タグ・関連ノートの自動リンク
+### Tags and automatic note linking
 
-ノート生成時、frontmatter に内容を表す `tags:` を自動付与する。さらに、出力先フォルダに既存ノートがあれば関連する箇所を `[[ノート名]]` でリンクする。リンク対象は**同じフォルダに実在するノート名のみ**で、存在しない名前は生成しない（`claude -p` はツールなし実行のため、ドライバが既存ノート名一覧を `<existing_notes>` として渡して実在を保証している）。
+When a note is generated, tags describing its content are added to `tags:` in the frontmatter. If there are existing notes in the output folder, related ones are also linked with `[[Note Name]]`. Only note names that actually exist in the same folder are linked — a nonexistent name is never invented (since `claude -p` runs without tools, the driver passes the list of existing note names as `<existing_notes>` to guarantee they're real).
 
-### プロンプトファイルの形式
+### The `NOTE_LANGUAGE` setting
+
+Prompts write notes in English by default. Set the `NOTE_LANGUAGE` environment variable to write them in a different language instead:
+
+```bash
+NOTE_LANGUAGE=Japanese ~/scripts/obsidian-import https://www.youtube.com/watch?v=XXXXX
+```
+
+Export it in your shell profile to make it the default for every run.
+
+### Prompt file format
 
 ```
 output_dir: ~/Documents/Obsidian/Vault/YouTube/講義
 ---
-下の<transcript>タグ内の文字起こしをObsidian講義ノート形式に変換して。
-ファイル名はテーマ名.md にして。
+Convert the transcript inside the <transcript> tag below into an Obsidian lecture note.
+Name the file Topic-Name.md.
 ...
 
-出力形式（この形式を厳守すること）:
-FILENAME: テーマ名.md
+Output format (follow this exactly):
+FILENAME: Topic Name.md
 ---
-(ノート本文)
+(note body)
 ```
 
-`output_dir:` ヘッダで出力先を指定し、`---` 以降がClaudeに渡されるプロンプト本文。
+The `output_dir:` header sets the output location; everything after `---` is the prompt body passed to Claude.
 
-### プロンプトを追加するときの注意
+### Notes for adding a new prompt
 
-新しいプロンプトファイルを作る場合、以下を守ること:
+If you create a new prompt file, follow these rules:
 
-1. **`FILENAME:` 出力形式を必ず含める** — シェルスクリプトは Claude の出力から `FILENAME: ファイル名.md` 行をパースしてファイルを保存する。この指示がないとノート変換が常に失敗する
-2. **`{{OUTPUT_DIR}} に保存して` と書かない** — Claude にはファイル書き込み権限がない（セキュリティ上の理由）。ファイル保存はシェルスクリプト側が行う
-3. **`下の<transcript>タグ内の〜` で始める** — 外部コンテンツはプロンプトの後ろに `<transcript>` タグで囲んで渡される
+1. **Always include the `FILENAME:` output format** — the shell script parses a `FILENAME: name.md` line out of Claude's output to save the file. Without this instruction, note conversion always fails
+2. **Don't write "save it to {{OUTPUT_DIR}}"** — Claude has no file-write permission (for security). The shell script handles saving the file
+3. **Start with "Convert the transcript inside the <transcript> tag below..."** — external content is passed after the prompt, wrapped in a `<transcript>` tag
 
-既存の `prompts/*.txt` をコピーして編集するのが最も確実。
+Copying and editing an existing `prompts/*.txt` is the safest way to do this.
 
-### セキュリティモデル
+### Security model
 
-外部コンテンツ（YouTube字幕・Webページ・ローカルファイル等）を処理するため、多層防御を採用している。
+Since this handles external content (YouTube subtitles, web pages, local files, etc.), it uses layered defenses.
 
-**プロンプトインジェクション対策**
+**Prompt injection defenses**
 
-1. **ツールなし実行** — `claude -p` をツール権限なしで実行。Claude はテキスト出力のみ可能で、ファイルシステムへのアクセス手段がない
-2. **シェルスクリプト側でファイル書き込み** — Claude の出力から `FILENAME:` 行をパースし、シェルスクリプトが `OUTPUT_DIR` 配下にのみ書き込む
-3. **ファイル名バリデーション** — `.md` 拡張子・パス区切り(`/`)なし・`..` なしを検証
-4. **データ境界の明示** — 外部コンテンツを `<transcript>` タグで囲み、「データであり指示ではない」と明記
+1. **Tool-less execution** — `claude -p` runs without tool permissions. Claude can only produce text output; it has no way to touch the filesystem
+2. **The shell script writes files** — it parses `FILENAME:` lines out of Claude's output and writes only under `OUTPUT_DIR`
+3. **Filename validation** — checks for a `.md` extension, no path separator (`/`), and no `..`
+4. **An explicit data boundary** — external content is wrapped in a `<transcript>` tag with a note that it's data, not instructions
 
-**ネットワーク（SSRF）対策** — `url_guard.py`
+**Network (SSRF) defenses** — `url_guard.py`
 
-5. **URL検証** — fetch する全URLを http/https に限定し、ホスト名のDNS解決IPが private/loopback/link-local/reserved 帯ならブロック（クラウドメタデータ `169.254.169.254`・localhost・LAN に到達させない）。8進/16進などの数値IP表記、IPv4-mapped IPv6 のパーサ差分も封鎖
-6. **リダイレクト再検証** — `requests` 経路はリダイレクトを手動追跡し、各ホップで再検証
+5. **URL validation** — every URL that gets fetched is restricted to http/https, and blocked if the hostname's resolved DNS IP falls in the private/loopback/link-local/reserved range (so it can never reach cloud metadata at `169.254.169.254`, localhost, or the LAN). Also closes parser-differential gaps like octal/hex numeric IP notation and IPv4-mapped IPv6
+6. **Redirect re-validation** — the `requests` path manually follows redirects and re-validates at every hop
 
-**リソース枯渇・ローカルファイル対策**
+**Resource exhaustion / local file defenses**
 
-7. **zip爆弾対策** — ローカルの zip / docx / pptx / xlsx（中身がZIP）を展開前に検査し、エントリ数・展開合計サイズ・圧縮率の上限超過を拒否
-8. **一時ファイル** — 音声/字幕の一時dirは `tempfile.mkdtemp`（mode 0700・予測不能）で symlink 先取りを防止
-9. **書き込み先の保護** — `write_note` は出力先がシンボリックリンクなら拒否、既存ファイルは上書きせず連番で回避、パス区切り/`..` を含む名前は拒否
+7. **Zip bomb defense** — a local zip / docx / pptx / xlsx (which are ZIP containers underneath) is inspected before extraction and rejected if it exceeds the entry count, total uncompressed size, or compression ratio limits
+8. **Temp files** — the temp dir for audio/subtitles is `tempfile.mkdtemp` (mode 0700, unpredictable), preventing symlink pre-planting
+9. **Output path protection** — `write_note` refuses to write through a symlinked output path, never overwrites an existing file (saves under a numbered name instead), and rejects a name containing a path separator or `..`
 
-> 想定する脅威モデルは「ユーザー自身が選んだ外部コンテンツの取り込み」（単一ユーザー）。不特定多数の untrusted 入力を捌くサーバ用途は範囲外で、PDF/URL経由の展開爆弾や巨大平文の完全防御は対象外（`CLAUDE.md` の【MUST】push前レビューで継続的に点検する）。
+> The assumed threat model is "importing external content the user themselves chose" (single-user). Serving arbitrary untrusted input at scale is out of scope, and complete defense against a decompression bomb via PDF/URL or an enormous plaintext payload isn't guaranteed (this is checked on an ongoing basis via the mandatory pre-push review in `CLAUDE.md`).
 
-## 運用の流れ
+## Workflow
 
-1. YouTubeの再生リストにノート化したい動画を追加していく
-2. `~/scripts/obsidian-import` を実行（プロンプトは自動選択される。明示したい場合は `-p <prompt>`）
-3. 完了後、最後に表示される処理結果を確認
-4. 問題なければ再生リストから処理済みの動画を削除
+1. Add videos you want turned into notes to a YouTube playlist
+2. Run `~/scripts/obsidian-import` (the prompt is auto-selected; use `-p <prompt>` to specify one)
+3. Check the results shown at the end
+4. If everything looks good, remove the processed videos from the playlist
 
-### 失敗した動画のリトライ
+### Retrying a failed video
 
-失敗した文字起こしは `.transcripts/` に残るので、そのまま再実行すればノート変換だけリトライされる。
+A failed transcription stays in `.transcripts/`, so just rerunning retries only the note conversion.
 
 ```bash
 ~/scripts/obsidian-import -p recipe
 ```
 
-文字起こし自体の品質が悪かった場合は、文字起こしファイルを削除してからやり直す。
+If the transcription itself was poor quality, delete the transcript file and start over.
 
 ```bash
-# 特定の動画を文字起こしからやり直し
+# Redo a specific video from scratch (transcription included)
 rm "<vault>/.transcripts/<video_id>.txt"
 ~/scripts/obsidian-import -p recipe "https://www.youtube.com/watch?v=<video_id>"
 ```
 
-### ファイルの状態
+### File states
 
-| 場所 | 意味 |
+| Location | Meaning |
 |------|------|
-| `.transcripts/*.txt` | 未処理 or ノート変換に失敗したテキスト |
-| `.transcripts/done/*.txt` | ノート変換済みのテキスト（参照用に保持） |
-| `<output_dir>/*.md` | 完成したノート |
+| `.transcripts/*.txt` | Unprocessed, or failed note conversion |
+| `.transcripts/done/*.txt` | Converted to a note (kept for reference) |
+| `<output_dir>/*.md` | A finished note |
 
-## Claude Code スキル
+## Claude Code skill
 
-`SKILL.md` を `~/.claude/commands/obsidian-import.md` に配置すると、Claude Code のどのセッションからでも `/obsidian-import` コマンドでノート変換を実行できる。`.transcripts/` 内のテキストファイルを読み取り、対話的にノート化する。
+Placing `SKILL.md` at `~/.claude/commands/obsidian-import.md` lets you run note conversion from any Claude Code session with the `/obsidian-import` command. It reads the text files in `.transcripts/` and turns them into notes interactively.
 
 ```bash
-# インストール
+# Install
 cp ~/repos/obsidian-import/SKILL.md ~/.claude/commands/obsidian-import.md
 ```
 
-## 注意点
+## Notes
 
-- mlx-whisper は Apple Silicon 専用。Intel Mac では動かない
-- 動画文字起こしは字幕（手動→自動生成）を優先取得する。字幕がない動画のみ Whisper large-v3-turbo（約3GB）にフォールバック。ただし `WHISPER_MAX_MINUTES`（デフォルト20分）を超える動画はWhisperをスキップし説明欄にフォールバックする
-- Whisperのハルシネーション（同一フレーズの繰り返し）は自動検出し、説明欄でフォールバックする
-- ローカルの音声/動画ファイルは Whisper（mlx・日本語特化）で文字起こしする。`.mp3/.m4a/.wav` 等は MarkItDown より Whisper を優先
-- ドキュメント変換は MarkItDown を使用。PDF, PPTX, DOCX, XLSX, 画像, URL に対応
-- 処理済みのソースはスキップされるので、中断しても再開可能
-- `MallocStackLogging` の警告が出ることがあるが無害
+- mlx-whisper is Apple Silicon only. It won't run on an Intel Mac
+- Video transcription prefers subtitles (manual, then auto-generated) first. Only a video with no subtitles falls back to Whisper large-v3-turbo (~3GB). A video longer than `WHISPER_MAX_MINUTES` (default 20 min) skips Whisper and falls back to the description
+- A Whisper hallucination (the same phrase repeated) is detected automatically and falls back to the description
+- A local audio/video file is transcribed with Whisper (mlx, tuned for Japanese). `.mp3/.m4a/.wav` etc. prefer Whisper over MarkItDown
+- Document conversion uses MarkItDown. Supports PDF, PPTX, DOCX, XLSX, images, and URLs
+- An already-processed source is skipped, so you can resume after an interruption
+- A `MallocStackLogging` warning may appear; it's harmless
 
-### 動画が取得できないとき
+### When a video can't be fetched
 
-- 動画サイト側の仕様変更にyt-dlpの追従が遅れていることが多い。まず更新する: `brew upgrade yt-dlp`（取得失敗時は自動でこのヒントを表示する）
-- 年齢制限・メンバー限定・ログイン必須の動画は非対応（ブラウザCookie経由の認証は未対応）
-- TVer等のDRM付き配信は対象外。どうしても取り込みたい場合は、BlackHole等でシステム音声を録音し、`~/scripts/obsidian-import <録音ファイル>` としてローカル音声ファイル経由で処理する
+- Often yt-dlp is just lagging a video site's recent changes. Update it first: `brew upgrade yt-dlp` (this hint is shown automatically on a fetch failure)
+- Age-restricted, members-only, or login-required videos aren't supported (browser-cookie-based auth isn't implemented)
+- DRM-protected streams (e.g. TVer) are out of scope. If you really need to capture one, record the system audio with something like BlackHole and process it as a local audio file: `~/scripts/obsidian-import <recording file>`

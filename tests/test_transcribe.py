@@ -39,7 +39,7 @@ def _make_run_result(stdout, returncode=0, stderr=""):
 
 class TestGetVideos:
     def test_single_video(self, monkeypatch):
-        data = {"id": "abc123", "title": "テスト動画"}
+        data = {"id": "abc123", "title": "Test Video"}
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result(json.dumps(data)),
@@ -52,8 +52,8 @@ class TestGetVideos:
     def test_playlist(self, monkeypatch):
         data = {
             "entries": [
-                {"id": "v1", "title": "動画1"},
-                {"id": "v2", "title": "動画2"},
+                {"id": "v1", "title": "Video 1"},
+                {"id": "v2", "title": "Video 2"},
             ]
         }
         monkeypatch.setattr(
@@ -127,20 +127,20 @@ class TestDownloadAudio:
 
 class TestIsHallucinated:
     def test_normal_text(self):
-        text = "今日は鶏肉を使った料理を紹介します。材料は鶏もも肉二枚と塩コショウです。まず鶏肉を一口大に切って、塩コショウで下味をつけます。フライパンに油を熱して中火で焼いていきます。"
+        text = "Today I'll show you a chicken recipe. The ingredients are two thighs and salt and pepper. First cut the chicken into bite-sized pieces, season with salt and pepper, then heat oil in a pan and cook over medium heat."
         assert transcribe.is_hallucinated(text) is False
 
     def test_repeated_phrase(self):
-        assert transcribe.is_hallucinated("なんなん" * 50) is True
+        assert transcribe.is_hallucinated("blahblah" * 50) is True
 
     def test_repeated_dots(self):
         assert transcribe.is_hallucinated("222" * 100) is True
 
     def test_too_short(self):
-        assert transcribe.is_hallucinated("短い") is True
+        assert transcribe.is_hallucinated("short") is True
 
     def test_mostly_punctuation(self):
-        text = "。、…・！？" * 30 + "あ"
+        text = ".,!?" * 30 + "a"
         assert transcribe.is_hallucinated(text) is True
 
 
@@ -150,7 +150,7 @@ class TestIsHallucinated:
 class TestGetSubtitles:
     def test_found(self, monkeypatch, tmp_path):
         video = {"id": "sub1", "url": "https://example.com"}
-        srt_content = "1\n00:00:01,000 --> 00:00:03,000\nこんにちは\n\n2\n00:00:03,000 --> 00:00:05,000\n今日は料理します\n"
+        srt_content = "1\n00:00:01,000 --> 00:00:03,000\nHello there\n\n2\n00:00:03,000 --> 00:00:05,000\nToday we're cooking\n"
 
         def fake_run(cmd, **kw):
             (transcribe.SUBS_TMP_DIR / f"{video['id']}.ja.srt").write_text(srt_content)
@@ -158,8 +158,8 @@ class TestGetSubtitles:
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         text, lang = transcribe.get_subtitles(video)
-        assert "こんにちは" in text
-        assert "今日は料理します" in text
+        assert "Hello there" in text
+        assert "Today we're cooking" in text
         assert lang is None
 
     def test_found_english(self, monkeypatch, tmp_path):
@@ -190,7 +190,7 @@ class TestGetSubtitles:
 class TestGetDescription:
     def test_found(self, monkeypatch):
         video = {"id": "desc1", "url": "https://example.com"}
-        desc = "材料：もずく280g、お酢大さじ2、黒糖粉大さじ1、醤油大さじ1、塩小さじ1/3、かつお出汁大さじ4"
+        desc = "Ingredients: 280g seaweed, 2 tbsp vinegar, 1 tbsp brown sugar, 1 tbsp soy sauce, 1/3 tsp salt, 4 tbsp dashi"
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result(desc),
@@ -201,24 +201,24 @@ class TestGetDescription:
         video = {"id": "desc2", "url": "https://example.com"}
         monkeypatch.setattr(
             subprocess, "run",
-            lambda *a, **kw: _make_run_result("短い"),
+            lambda *a, **kw: _make_run_result("short"),
         )
         assert transcribe.get_description(video) is None
 
 
 class TestSaveTranscript:
     def test_save_whisper(self):
-        video = {"id": "sv1", "title": "テスト", "url": "https://example.com"}
-        result = transcribe.save_transcript(video, "テキスト内容")
+        video = {"id": "sv1", "title": "Test", "url": "https://example.com"}
+        result = transcribe.save_transcript(video, "Text content")
         assert result.exists()
         content = result.read_text()
-        assert "title: テスト" in content
+        assert "title: Test" in content
         assert "source:" not in content
-        assert "テキスト内容" in content
+        assert "Text content" in content
 
     def test_save_with_source(self):
-        video = {"id": "sv2", "title": "テスト", "url": "https://example.com"}
-        result = transcribe.save_transcript(video, "説明欄", source="youtube-description")
+        video = {"id": "sv2", "title": "Test", "url": "https://example.com"}
+        result = transcribe.save_transcript(video, "Description text", source="youtube-description")
         content = result.read_text()
         assert "source: youtube-description" in content
 
@@ -259,21 +259,21 @@ class TestTranscribeLocalFile:
         return mock_module
 
     def test_local_audio_transcribed(self, monkeypatch, tmp_path):
-        self._mock_mlx_whisper(monkeypatch, "これはローカル音声ファイルの文字起こし結果です。会議では新機能の方針について話し合い、来週までに試作を作ることになりました。担当は山田さんです。")
-        audio = tmp_path / "会議メモ.m4a"
+        self._mock_mlx_whisper(monkeypatch, "This is the transcription result from a local audio file. In the meeting, we discussed the direction of the new feature and decided to build a prototype by next week. Yamada is in charge.")
+        audio = tmp_path / "meeting-notes.m4a"
         audio.write_text("fake")
 
         result = transcribe.transcribe_local_file(str(audio))
         assert result is not None
         content = result.read_text()
         assert "source: local-audio" in content
-        assert "title: 会議メモ.m4a" in content
+        assert "title: meeting-notes.m4a" in content
         assert "url: file://" in content
-        assert "ローカル音声ファイルの文字起こし" in content
+        assert "transcription result from a local audio file" in content
 
     def test_id_is_hashed_not_stem(self, monkeypatch, tmp_path):
-        """ファイル名そのものでなくハッシュIDで保存される（ファイル名安全性）"""
-        self._mock_mlx_whisper(monkeypatch, "これはテスト用の文字起こし結果です。ファイル名ではなくハッシュからIDを生成することを確認するための十分な長さの本文を用意しています。")
+        """Saved under a hashed ID rather than the filename itself (filename safety)"""
+        self._mock_mlx_whisper(monkeypatch, "This is a test transcription result. This body is long enough to confirm the ID is generated from a hash rather than the filename.")
         audio = tmp_path / "a b_c.mp3"
         audio.write_text("fake")
         result = transcribe.transcribe_local_file(str(audio))
@@ -281,17 +281,17 @@ class TestTranscribeLocalFile:
         assert result.name == f"{expected_id}.txt"
 
     def test_skips_when_processed(self, monkeypatch, tmp_path):
-        self._mock_mlx_whisper(monkeypatch, "一回目の文字起こし結果です。同じファイルを二回処理したときに二回目がスキップされることを確認するための十分な長さの本文を含めています。")
+        self._mock_mlx_whisper(monkeypatch, "This is the first transcription result. This body is long enough to confirm that processing the same file twice skips the second time.")
         audio = tmp_path / "dup.wav"
         audio.write_text("fake")
         first = transcribe.transcribe_local_file(str(audio))
         assert first is not None
-        # 2回目は処理済みでスキップ（None）
+        # Second time is already processed, so it's skipped (None)
         second = transcribe.transcribe_local_file(str(audio))
         assert second is None
 
     def test_hallucination_returns_none(self, monkeypatch, tmp_path):
-        self._mock_mlx_whisper(monkeypatch, "ああ" * 50)
+        self._mock_mlx_whisper(monkeypatch, "uhh" * 50)
         audio = tmp_path / "noise.mp3"
         audio.write_text("fake")
         result = transcribe.transcribe_local_file(str(audio))
@@ -316,7 +316,7 @@ class TestSafeId:
         assert transcribe._is_safe_id(None) is False
 
     def test_trailing_newline_rejected(self):
-        # 正規表現の `$` だと許してしまう末尾改行を fullmatch で弾く
+        # fullmatch rejects a trailing newline that `$` in the regex would let through
         assert transcribe._is_safe_id("abc\n") is False
         assert transcribe._is_safe_id("abc\n../evil") is False
 
@@ -330,7 +330,7 @@ class TestIsXHost:
         assert transcribe._is_x_host("mobile.twitter.com") is True
 
     def test_lookalike_rejected(self):
-        # 部分一致なら通ってしまう攻撃者ドメインを弾く
+        # Rejects an attacker-controlled domain that a partial match would let through
         assert transcribe._is_x_host("x.com.evil.io") is False
         assert transcribe._is_x_host("notx.com") is False
 
@@ -357,7 +357,7 @@ class TestGetVideosIdValidation:
 
 class TestGetVideosNoVideoExit:
     def test_allow_no_video_exit_exits_2(self, monkeypatch):
-        """probe済みの非YouTube動画経路でyt-dlpが失敗したら exit 2（記事フォールバック用）"""
+        """A failed yt-dlp call on a probed non-YouTube video path exits 2 (for article fallback)"""
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result("", returncode=1, stderr="no video"),
@@ -367,7 +367,7 @@ class TestGetVideosNoVideoExit:
         assert exc_info.value.code == 2
 
     def test_default_still_exits_1(self, monkeypatch):
-        """allow_no_video_exit未指定（YouTube等）は従来どおり exit 1"""
+        """Without allow_no_video_exit (e.g. YouTube), still exits 1 as before"""
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result("", returncode=1, stderr="not found"),
@@ -379,7 +379,7 @@ class TestGetVideosNoVideoExit:
 
 class TestGetVideosDuration:
     def test_duration_captured_single(self, monkeypatch):
-        data = {"id": "abc123", "title": "テスト動画", "duration": 125}
+        data = {"id": "abc123", "title": "Test Video", "duration": 125}
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result(json.dumps(data)),
@@ -388,7 +388,7 @@ class TestGetVideosDuration:
         assert videos[0]["duration"] == 125
 
     def test_duration_captured_playlist(self, monkeypatch):
-        data = {"entries": [{"id": "v1", "title": "動画1", "duration": 300}]}
+        data = {"entries": [{"id": "v1", "title": "Video 1", "duration": 300}]}
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result(json.dumps(data)),
@@ -397,7 +397,7 @@ class TestGetVideosDuration:
         assert videos[0]["duration"] == 300
 
     def test_duration_missing_is_none(self, monkeypatch):
-        data = {"id": "abc123", "title": "テスト動画"}
+        data = {"id": "abc123", "title": "Test Video"}
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result(json.dumps(data)),
@@ -407,11 +407,11 @@ class TestGetVideosDuration:
 
 
 class TestGetVideosEntryUrl:
-    """R4: 非YouTubeプレイリストのentry URL（yt-dlp由来の外部データ）の扱い"""
+    """R4: handling of non-YouTube playlist entry URLs (external data from yt-dlp)"""
 
     def test_uses_entry_url_when_present(self, monkeypatch):
         data = {"entries": [
-            {"id": "abc123XYZ01", "title": "動画", "url": "https://www.tiktok.com/@user/video/abc123XYZ01"}
+            {"id": "abc123XYZ01", "title": "Video", "url": "https://www.tiktok.com/@user/video/abc123XYZ01"}
         ]}
         monkeypatch.setattr(
             subprocess, "run",
@@ -440,7 +440,7 @@ class TestGetVideosEntryUrl:
         assert [v["id"] for v in videos] == ["goodentry1"]
 
     def test_youtube_falls_back_to_watch_url_when_entry_url_missing(self, monkeypatch):
-        data = {"entries": [{"id": "v2", "title": "動画2"}]}
+        data = {"entries": [{"id": "v2", "title": "Video 2"}]}
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result(json.dumps(data)),
@@ -468,7 +468,7 @@ class TestIsYoutubeUrlStrict:
         assert transcribe.is_youtube_url("https://m.youtube.com/watch?v=x") is True
 
     def test_lookalike_rejected(self):
-        # 部分一致なら通ってしまう攻撃者ドメインを弾く
+        # Rejects an attacker-controlled domain that a partial match would let through
         assert transcribe.is_youtube_url("https://youtube.com.evil.example/watch?v=x") is False
         assert transcribe.is_youtube_url("https://notyoutube.com/x") is False
 
@@ -496,7 +496,7 @@ class TestDetectVideoExtractor:
         assert transcribe.detect_video_extractor("https://example.com/article") is None
 
     def test_na_is_treated_as_video(self, monkeypatch):
-        """flat-playlistでextractorフィールドが欠損しNAが返る場合は動画扱い"""
+        """When flat-playlist is missing the extractor field and returns NA, it still counts as a video"""
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: _make_run_result("NA\n"),
@@ -519,7 +519,7 @@ class TestDetectVideoExtractor:
 
     def test_unsafe_url_returns_none_without_calling_ytdlp(self, monkeypatch):
         def fail_if_called(*a, **kw):
-            raise AssertionError("URLが安全でない場合、yt-dlpを呼んではいけない")
+            raise AssertionError("yt-dlp must not be called when the URL is unsafe")
 
         monkeypatch.setattr(subprocess, "run", fail_if_called)
         monkeypatch.setattr(
@@ -545,7 +545,7 @@ class TestWhisperMaxMinutes:
     def test_invalid_value_falls_back_to_default(self, monkeypatch, capsys):
         monkeypatch.setenv("WHISPER_MAX_MINUTES", "banana")
         assert transcribe._get_whisper_max_minutes() == 20
-        assert "警告" in capsys.readouterr().out
+        assert "Warning" in capsys.readouterr().out
 
     def test_negative_value_falls_back_to_default(self, monkeypatch):
         monkeypatch.setenv("WHISPER_MAX_MINUTES", "-5")
@@ -579,18 +579,18 @@ class TestYtdlpHint:
 class TestHeaderSanitization:
     def test_newline_in_title_does_not_inject_header(self):
         video = {"id": "h1", "title": "evil\n---\ninjected: pwned", "url": "https://e.com"}
-        result = transcribe.save_transcript(video, "本文テキスト")
+        result = transcribe.save_transcript(video, "Body text")
         content = result.read_text()
         header, body = content.split("\n---\n", 1)
-        # title の改行はスペース化され、ヘッダに偽の境界/キー行が入らない
+        # The newline in the title is turned into a space, so no fake boundary/key line gets into the header
         assert "\ninjected: pwned" not in content
-        assert body == "本文テキスト"
-        # title 値は1行に収まっている
+        assert body == "Body text"
+        # The title value fits on a single line
         assert header.split("\n")[0] == "title: evil --- injected: pwned"
 
 
 class TestTranscribeVideo:
-    def _mock_mlx_whisper(self, monkeypatch, text="今日は鶏肉を使った料理を紹介します。材料は鶏もも肉二枚と塩コショウです。まず鶏肉を一口大に切ってフライパンで焼いていきます。"):
+    def _mock_mlx_whisper(self, monkeypatch, text="Today I'll show you a chicken recipe. The ingredients are two thighs and salt and pepper. First cut the chicken into pieces, then cook it in a pan."):
         mock_module = types.ModuleType("mlx_whisper")
         mock_module.transcribe = MagicMock(return_value={"text": text})
         monkeypatch.setitem(sys.modules, "mlx_whisper", mock_module)
@@ -604,36 +604,36 @@ class TestTranscribeVideo:
         monkeypatch.setattr(transcribe, "download_audio", fake_download)
 
     def test_subtitles_preferred(self, monkeypatch):
-        """字幕があればWhisperを使わず字幕を使う"""
-        video = {"id": "t_sub", "title": "テスト", "url": "https://example.com"}
-        sub_text = "字幕からの内容です。今日はもずく酢を作ります。材料はもずく280グラムとお酢大さじ2です。"
+        """When subtitles exist, use them instead of Whisper"""
+        video = {"id": "t_sub", "title": "Test", "url": "https://example.com"}
+        sub_text = "Content from the subtitles. Today we're making seaweed with vinegar. Ingredients: 280g seaweed and 2 tbsp vinegar."
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (sub_text, None))
 
         result = transcribe.transcribe_video(video)
         assert result is not None
         content = result.read_text()
         assert "source: youtube-subtitles" in content
-        assert "字幕からの内容" in content
+        assert "Content from the subtitles" in content
 
     def test_whisper_fallback_on_no_subtitles(self, monkeypatch):
-        """字幕がない場合はWhisperにフォールバック"""
-        self._mock_mlx_whisper(monkeypatch, text="材料は卵2個と砂糖大さじ1と醤油小さじ1です。まず卵をボウルに割り入れてよく溶きほぐします。フライパンに油を熱して中火で焼いていきます。表面が固まったら巻いていきましょう。")
+        """Falls back to Whisper when there are no subtitles"""
+        self._mock_mlx_whisper(monkeypatch, text="Ingredients: 2 eggs, 1 tbsp sugar, 1 tsp soy sauce. First crack the eggs into a bowl and whisk well. Heat oil in a pan over medium heat. Once the surface sets, roll it up.")
         self._mock_download(monkeypatch)
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
-        video = {"id": "t1", "title": "卵焼き", "url": "https://example.com/t1"}
+        video = {"id": "t1", "title": "Tamagoyaki", "url": "https://example.com/t1"}
 
         result = transcribe.transcribe_video(video)
         assert result is not None
         content = result.read_text()
-        assert "title: 卵焼き" in content
-        assert "材料は卵2個" in content
+        assert "title: Tamagoyaki" in content
+        assert "Ingredients: 2 eggs" in content
 
     def test_hallucination_fallback_to_description(self, monkeypatch):
-        """Whisperがハルシネーションした場合は説明欄にフォールバック"""
-        self._mock_mlx_whisper(monkeypatch, text="なんなん" * 50)
+        """Falls back to the description when Whisper hallucinates"""
+        self._mock_mlx_whisper(monkeypatch, text="blahblah" * 50)
         self._mock_download(monkeypatch)
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
-        desc = "説明欄の内容です。材料：もずく280g、お酢大さじ2、黒糖粉大さじ1、醤油大さじ1"
+        desc = "Content from the description. Ingredients: 280g seaweed, 2 tbsp vinegar, 1 tbsp brown sugar, 1 tbsp soy sauce"
         monkeypatch.setattr(transcribe, "get_description", lambda v: desc)
         video = {"id": "t_desc", "title": "test", "url": "https://example.com"}
 
@@ -642,8 +642,8 @@ class TestTranscribeVideo:
         assert "source: youtube-description" in result.read_text()
 
     def test_all_fallbacks_fail(self, monkeypatch):
-        """字幕なし・Whisperハルシネーション・説明欄なし → None"""
-        self._mock_mlx_whisper(monkeypatch, text="なんなん" * 50)
+        """No subtitles, Whisper hallucination, no description -> None"""
+        self._mock_mlx_whisper(monkeypatch, text="blahblah" * 50)
         self._mock_download(monkeypatch)
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
         monkeypatch.setattr(transcribe, "get_description", lambda v: None)
@@ -652,13 +652,13 @@ class TestTranscribeVideo:
         assert transcribe.transcribe_video(video) is None
 
     def test_whisper_error_fallback(self, monkeypatch):
-        """Whisperエラー時は説明欄にフォールバック"""
+        """Falls back to the description on a Whisper error"""
         mock_module = types.ModuleType("mlx_whisper")
         mock_module.transcribe = MagicMock(side_effect=RuntimeError("GPU error"))
         monkeypatch.setitem(sys.modules, "mlx_whisper", mock_module)
         self._mock_download(monkeypatch)
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
-        desc = "説明欄フォールバック。材料：もずく280g、お酢大さじ2、黒糖粉大さじ1、醤油大さじ1"
+        desc = "Description fallback. Ingredients: 280g seaweed, 2 tbsp vinegar, 1 tbsp brown sugar, 1 tbsp soy sauce"
         monkeypatch.setattr(transcribe, "get_description", lambda v: desc)
         video = {"id": "t3", "title": "test", "url": "https://example.com"}
 
@@ -667,10 +667,10 @@ class TestTranscribeVideo:
         assert "source: youtube-description" in result.read_text()
 
     def test_duration_over_limit_skips_whisper(self, monkeypatch):
-        """長さ上限超過時はWhisperを呼ばず説明欄にフォールバックする"""
+        """When the duration exceeds the limit, skip Whisper and fall back to the description"""
         monkeypatch.setenv("WHISPER_MAX_MINUTES", "20")
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
-        desc = "長尺動画の説明欄です。材料：もずく280g、お酢大さじ2、黒糖粉大さじ1、醤油大さじ1"
+        desc = "Description for a long video. Ingredients: 280g seaweed, 2 tbsp vinegar, 1 tbsp brown sugar, 1 tbsp soy sauce"
         monkeypatch.setattr(transcribe, "get_description", lambda v: desc)
 
         called = {"download": False}
@@ -680,44 +680,44 @@ class TestTranscribeVideo:
             return None
 
         monkeypatch.setattr(transcribe, "download_audio", fake_download)
-        video = {"id": "long1", "title": "長尺", "url": "https://example.com", "duration": 30 * 60}
+        video = {"id": "long1", "title": "Long video", "url": "https://example.com", "duration": 30 * 60}
 
         result = transcribe.transcribe_video(video)
         assert result is not None
         assert "source: youtube-description" in result.read_text()
-        assert called["download"] is False, "Whisperの音声ダウンロードが呼ばれてはいけない"
+        assert called["download"] is False, "Whisper's audio download must not be called"
 
     def test_duration_unlimited_when_zero(self, monkeypatch):
-        """WHISPER_MAX_MINUTES=0なら長尺でもWhisperを実行する"""
+        """With WHISPER_MAX_MINUTES=0, run Whisper even for a long video"""
         monkeypatch.setenv("WHISPER_MAX_MINUTES", "0")
         self._mock_mlx_whisper(monkeypatch)
         self._mock_download(monkeypatch)
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
-        video = {"id": "long2", "title": "長尺2", "url": "https://example.com", "duration": 999 * 60}
+        video = {"id": "long2", "title": "Long video 2", "url": "https://example.com", "duration": 999 * 60}
 
         result = transcribe.transcribe_video(video)
         assert result is not None
         assert "source:" not in result.read_text()
 
     def test_duration_unknown_runs_whisper(self, monkeypatch):
-        """durationが不明（キーなし）ならfail-openでWhisperを実行する"""
+        """When duration is unknown (no key), fail-open and run Whisper"""
         monkeypatch.setenv("WHISPER_MAX_MINUTES", "20")
         self._mock_mlx_whisper(monkeypatch)
         self._mock_download(monkeypatch)
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
-        video = {"id": "unknown1", "title": "不明", "url": "https://example.com"}
+        video = {"id": "unknown1", "title": "Unknown", "url": "https://example.com"}
 
         result = transcribe.transcribe_video(video)
         assert result is not None
         assert "source:" not in result.read_text()
 
     def test_duration_within_limit_runs_whisper(self, monkeypatch):
-        """上限以内の長さならWhisperを普通に実行する"""
+        """Runs Whisper normally when the duration is within the limit"""
         monkeypatch.setenv("WHISPER_MAX_MINUTES", "20")
         self._mock_mlx_whisper(monkeypatch)
         self._mock_download(monkeypatch)
         monkeypatch.setattr(transcribe, "get_subtitles", lambda v: (None, None))
-        video = {"id": "short1", "title": "短尺", "url": "https://example.com", "duration": 5 * 60}
+        video = {"id": "short1", "title": "Short video", "url": "https://example.com", "duration": 5 * 60}
 
         result = transcribe.transcribe_video(video)
         assert result is not None

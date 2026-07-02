@@ -1,50 +1,50 @@
 ---
 name: obsidian-import
-description: YouTube動画・ローカル音声/動画・Web記事・ドキュメント（PDF/スライド等）をObsidianノートに自動変換するスキル。「レシピ化して」「文字起こしをレシピにして」「.transcriptsを処理して」「YouTubeのレシピを整理して」「この記事をノートにして」「X/Twitterの記事を要約して」「PDFを要約して」「スライドをノートにして」「録音を文字起こしして」「音声メモをノート化して」などで起動する。文字起こし済みテキストがない場合はローカル実行スクリプト（yt-dlp + mlx-whisper + markitdown）のセットアップもガイドする。YouTube、レシピ、文字起こし、Obsidian、料理動画、Web記事、X Article、ブログ記事、PDF、スライド、音声メモ、録音、要約、ノート化などのキーワードが出たら積極的にこのスキルの利用を検討すること。
+description: A skill that automatically converts a YouTube video, local audio/video, a web article, or a document (PDF/slides, etc.) into an Obsidian note. Triggers on phrases like "turn this into a recipe," "convert this transcript into a recipe," "process .transcripts," "organize my YouTube recipes," "turn this article into a note," "summarize this X/Twitter post," "summarize this PDF," "turn these slides into a note," "transcribe this recording," or "make a note from this voice memo." If there's no transcribed text yet, it also guides setup of the local execution scripts (yt-dlp + mlx-whisper + markitdown). Actively consider using this skill whenever keywords like YouTube, recipe, transcription, Obsidian, cooking video, web article, X Article, blog post, PDF, slides, voice memo, recording, summarize, or note-taking come up.
 ---
 
 # Obsidian Import
 
-YouTube動画の文字起こし・Web記事のテキスト・ドキュメント（PDF/スライド等）を読み取り、Obsidian Vaultの構造化ノートに変換して保存するスキル。
+A skill that reads a YouTube video's transcript, a web article's text, or a document (PDF/slides, etc.), converts it into a structured Obsidian note, and saves it to the Vault.
 
-## 全体の流れ
+## Overall flow
 
-1. **テキスト取得**（Macローカルで実行）:
-   - 動画URL（YouTube、TikTok、Instagram、X動画等 yt-dlp対応サイト全般）→ `~/scripts/transcribe.py` で字幕/音声を取得（mlx-whisper）。YouTube以外は自動判定（動画でなければ記事処理にフォールバック）
-   - ローカルの音声/動画ファイル（.mp3/.m4a/.wav/.mp4/.mov 等）→ `~/scripts/transcribe.py` で Whisper 文字起こし
-   - それ以外のURL・ファイル → `~/scripts/convert.py` で MarkItDown によりMarkdown化
-   - 結果は `.transcripts/` フォルダに保存される
-2. **ノート化**: `.transcripts/` 内のテキストファイルを読み、プロンプトに応じた形式に変換してObsidianフォルダに保存。
+1. **Text extraction** (runs locally on the Mac):
+   - A video URL (YouTube, TikTok, Instagram, X video, or any other yt-dlp-supported site) -> `~/scripts/transcribe.py` fetches subtitles/audio (mlx-whisper). For non-YouTube URLs it auto-detects whether it's actually a video (falling back to article processing if not)
+   - A local audio/video file (.mp3/.m4a/.wav/.mp4/.mov, etc.) -> `~/scripts/transcribe.py` transcribes it with Whisper
+   - Any other URL/file -> `~/scripts/convert.py` converts it to Markdown with MarkItDown
+   - The result is saved to the `.transcripts/` folder
+2. **Note conversion**: read the text files in `.transcripts/`, convert each into the format the prompt calls for, and save it to the Obsidian folder.
 
-ノート化は以下のどちらでも実行できる:
-- **CLIから**: `~/scripts/obsidian-import` を実行（内部で `claude -p` を1件ずつ呼び出す）
-- **このスキル**: Coworkや対話セッション内で直接実行
+Note conversion can be run either way:
+- **From the CLI**: run `~/scripts/obsidian-import` (internally calls `claude -p` once per item)
+- **This skill**: run it directly inside Cowork or an interactive session
 
-## パス情報
+## Path reference
 
 ```
-リポジトリ:  ~/repos/obsidian-import/
-スクリプト:  ~/scripts/obsidian-import    → シンボリックリンク
-             ~/scripts/transcribe.py     → シンボリックリンク
-             ~/scripts/convert.py        → シンボリックリンク
-venv:        ~/scripts/.venv/
-Vault:       ~/Documents/Obsidian/Vault/YouTube/レシピ/
-文字起こし:  <vault>/.transcripts/*.txt     （未処理）
-処理済み:    <vault>/.transcripts/done/     （レシピ変換済み）
+Repository:     ~/repos/obsidian-import/
+Scripts:        ~/scripts/obsidian-import    -> symlink
+                ~/scripts/transcribe.py     -> symlink
+                ~/scripts/convert.py        -> symlink
+venv:           ~/scripts/.venv/
+Vault:          ~/Documents/Obsidian/Vault/YouTube/レシピ/
+Transcripts:    <vault>/.transcripts/*.txt     (unprocessed)
+Done:           <vault>/.transcripts/done/     (already converted to a recipe)
 ```
 
-## セットアップガイド
+## Setup guide
 
-ユーザーがまだセットアップしていない場合、以下を案内する:
+If the user hasn't set this up yet, walk them through:
 
 ```bash
 brew install yt-dlp ffmpeg python@3.12
 
-# venv 作成と依存インストール
+# Create the venv and install dependencies
 python3.12 -m venv ~/scripts/.venv
 ~/scripts/.venv/bin/pip install mlx-whisper "markitdown[all]"
 
-# リポジトリのクローンとシンボリックリンク
+# Clone the repo and set up the symlinks
 git clone https://github.com/nobu666/obsidian-import.git ~/repos/obsidian-import
 ln -s ~/repos/obsidian-import/obsidian-import ~/scripts/obsidian-import
 ln -s ~/repos/obsidian-import/transcribe.py ~/scripts/transcribe.py
@@ -52,60 +52,60 @@ ln -s ~/repos/obsidian-import/convert.py ~/scripts/convert.py
 chmod +x ~/scripts/obsidian-import
 ```
 
-実行:
+Running it:
 
 ```bash
-# 再生リストをまとめて処理
+# Process a whole playlist
 ~/scripts/obsidian-import https://www.youtube.com/playlist?list=XXXXX
 
-# 単体の動画
+# A single video
 ~/scripts/obsidian-import https://www.youtube.com/watch?v=XXXXX
 
-# Web記事をノート化
+# Turn a web article into a note
 ~/scripts/obsidian-import https://x.com/user/status/XXXXX
 
-# ドキュメント（PDF/スライド/Google Docs等）
+# A document (PDF/slides/Google Docs, etc.)
 ~/scripts/obsidian-import https://docs.google.com/document/d/XXXXX
 ~/scripts/obsidian-import ~/Downloads/slides.pdf
 
-# ローカルの音声/動画ファイル（Whisperで文字起こし）
+# A local audio/video file (transcribed with Whisper)
 ~/scripts/obsidian-import ~/Downloads/voice-memo.m4a
 ~/scripts/obsidian-import ~/Downloads/recording.mp4
 
-# テキスト取得だけ（ノート変換なし）
+# Just extract the text (no note conversion)
 ~/scripts/.venv/bin/python3 ~/scripts/transcribe.py https://www.youtube.com/watch?v=XXXXX
 ~/scripts/.venv/bin/python3 ~/scripts/convert.py https://example.com/paper.pdf
 ```
 
-## ノート化の手順
+## Note conversion steps
 
-### 1. テキストファイルを読む
+### 1. Read the text file
 
-出力先フォルダ内の `.transcripts/` ディレクトリにある `.txt` ファイルを読む。`done/` サブディレクトリ内のファイルは処理済みなので無視する。各ファイルの形式:
+Read the `.txt` files in the `.transcripts/` directory inside the output folder. Ignore files in the `done/` subdirectory — they're already processed. Each file has this format:
 
 ```
-title: 動画タイトル
-video_id: YouTubeのID
+title: Video title
+video_id: YouTube ID
 url: https://www.youtube.com/watch?v=...
 ---
-（文字起こし本文）
+(transcript body)
 ```
 
-### 2. レシピを抽出する
+### 2. Extract the recipe
 
-文字起こしから以下の情報を抽出する:
+Extract the following from the transcript:
 
-- **料理名**: 動画タイトルの【】＜＞「」内や、文字起こし本文から判断。簡潔に。
-- **材料**: 名前と分量。分量が不明なら「適量」。
-- **手順**: 番号付きの簡潔なステップ。
+- **Dish name**: judge from anything in 【】<>「」 in the video title, or from the transcript body. Keep it concise.
+- **Ingredients**: name and amount. If the amount is unclear, use "to taste."
+- **Steps**: concise, numbered steps.
 
-動画内で複数レシピが紹介されている場合は、メインのレシピを1ファイルとして作成し、アレンジやサブレシピは `##` セクションで同じファイル内に含める。
+If multiple recipes are introduced in the video, create the main recipe as one file, and fold in arrangements/sub-recipes as `##` sections within the same file.
 
-文字起こしの品質が低い場合（Whisperのハルシネーション等）でも、読み取れる範囲で最善のレシピを作る。内容が全く読み取れない場合だけスキップし、その旨を報告する。質問や確認はせず、自分で判断して進めること。
+Even if the transcript quality is poor (e.g. a Whisper hallucination), produce the best possible recipe from what can be read. Only skip a note if the content is completely unreadable, and report that. Don't ask questions or seek confirmation — decide for yourself and proceed.
 
-### 3. 出力フォーマット
+### 3. Output format
 
-既存のレシピノートに厳密に合わせる。以下がテンプレート:
+Match the existing recipe notes exactly. Here's the template:
 
 ```markdown
 ---
@@ -114,49 +114,49 @@ updated: YYYY-MM-DD HH:MM
 source: https://www.youtube.com/watch?v=VIDEO_ID
 ---
 
-# 料理名
+# Dish Name
 
-* 材料1 分量
-* 材料2 分量
-* 材料3 分量
+* Ingredient 1 Amount
+* Ingredient 2 Amount
+* Ingredient 3 Amount
 
-1. 手順1
-2. 手順2
-3. 手順3
+1. Step 1
+2. Step 2
+3. Step 3
 ```
 
-重要なポイント:
-- frontmatterの `source` には動画URLを入れる
-- `created` / `updated` は現在日時
-- 材料は `* ` で始まる箇条書き（サブグループがあればインデント）
-- 手順は `1. ` で始まる番号付きリスト
-- 余計な説明・感想・宣伝・チャンネル登録の案内は一切含めない
-- 簡潔に。文は短く。
+Key points:
+- Put the video URL in frontmatter's `source`
+- `created` / `updated` are the current date/time
+- Ingredients are a bulleted list starting with `* ` (indent for subgroups)
+- Steps are a numbered list starting with `1. `
+- Never include extraneous commentary, impressions, promotion, or a call to subscribe
+- Keep it concise. Short sentences.
 
-### 4. ファイル名の決定
+### 4. Decide the filename
 
-料理名をそのままファイル名にする。例:
-- `トマトと卵の炒め物.md`
-- `かぼちゃのそぼろ煮.md`
-- `自家製たくあん.md`
+Use the dish name as-is for the filename. Examples:
+- `Stir-fried tomato and egg.md`
+- `Simmered kabocha with ground meat.md`
+- `Homemade takuan pickles.md`
 
-動画タイトルではなく、抽出した料理名を使うこと。
+Use the extracted dish name, not the video's title.
 
-### 5. 保存
+### 5. Save it
 
-Obsidianレシピフォルダに直接保存する:
+Save it directly to the Obsidian recipe folder:
 
 ```
-~/Documents/Obsidian/Vault/YouTube/レシピ/料理名.md
+~/Documents/Obsidian/Vault/YouTube/レシピ/Dish Name.md
 ```
 
-### 6. 処理済みファイルの扱い
+### 6. Handling processed files
 
-ノート化が完了したテキストファイルは `.transcripts/done/` に移動する。これにより次回実行時に重複処理を防ぐ。
+Move a text file to `.transcripts/done/` once it's been converted to a note. This prevents it from being processed again next time.
 
-## 既存レシピの例
+## Existing recipe examples
 
-参考として、ユーザーのVaultにある実際のレシピ:
+For reference, actual recipes from the user's Vault:
 
 ```markdown
 ---
@@ -165,20 +165,20 @@ updated: 2021-10-15 10:02
 source: google-keep
 ---
 
-# ガリバタチキン
+# Garlic Butter Chicken
 
-* もも肉 2枚
-* にんにく 1-2片
-* 酒 大さじ2
-* みりん 大さじ2
-* 醤油 大さじ2
-* 砂糖 小さじ2/3
-* バター 20g
+* Chicken thigh 2 pieces
+* Garlic 1-2 cloves
+* Sake 2 tbsp
+* Mirin 2 tbsp
+* Soy sauce 2 tbsp
+* Sugar 2/3 tsp
+* Butter 20g
 
-1. 肉は一口大に切り軽く塩コショウ
-2. 油少量を温め、皮目から炒める
-3. にんにくすりおろし、調味料、うま味調味料3振りを入れて煮詰める
-4. バターを溶かす
+1. Cut the meat into bite-sized pieces and season lightly with salt and pepper
+2. Heat a little oil and start cooking skin-side down
+3. Grate in the garlic, add the seasonings and a few dashes of umami seasoning, and reduce
+4. Melt in the butter
 ```
 
 ```markdown
@@ -188,38 +188,38 @@ updated: 2021-10-15 10:20
 source: google-keep
 ---
 
-# 麻婆豆腐
+# Mapo Tofu
 
-* ザージャン
-    * 粗挽き豚ひき肉120g
-    * 紹興酒・醤油 15cc
-    * 甜麺醤 10g
-* 本体
-    * 豆腐 1丁
-    * にんにく・生姜 大さじ山盛り2
-    * 刻み豆鼓 大さじ山盛り1
-    * 唐辛子適当
-    * 豆板醤 小さじ2
-    * 水 300cc
-    * 鶏ガラスープのもと 小さじ2
-    * 紹興酒・醤油 20cc
-* 仕上げ
-    * 刻みネギ
-    * にんにくの芽 1本
-    * 水溶き片栗粉 大さじ1+1
-    * ホアジャオ
-    * ラー油
+* Zhajiang (fried sauce)
+    * Coarsely ground pork 120g
+    * Shaoxing wine + soy sauce 15cc
+    * Sweet bean sauce (tianmianjiang) 10g
+* Main
+    * Tofu 1 block
+    * Grated garlic + ginger 2 heaping tbsp
+    * Chopped fermented black beans (douchi) 1 heaping tbsp
+    * Chili pepper to taste
+    * Doubanjiang 2 tsp
+    * Water 300cc
+    * Chicken stock powder 2 tsp
+    * Shaoxing wine + soy sauce 20cc
+* Finishing
+    * Chopped scallion
+    * Garlic scape 1 stalk
+    * Water-dissolved potato starch 1+1 tbsp
+    * Sichuan pepper
+    * Chili oil
 
-1. 鍋を熱して油を入れ、ひき肉を炒める
-2. 火が通ったら紹興酒と醤油を入れ、水分が飛ぶまで炒め、甜麺醤を混ぜる
-3. 鍋を一度掃除し、油でにんにく・生姜・豆板醤・豆鼓・唐辛子を弱火で炒めて香りを出す
-4. 油に色がついてきたら強火にしてザージャンを加えて混ぜ炒める
-5. スープ・醤油・紹興酒を入れて混ぜる
-6. 豆腐は適当な大きさに切って一度別鍋で茹でてから加える
-7. 豆腐を入れたら2-3分煮込む
-8. にんにくの芽をネギをいれ、火を落として水溶き片栗粉を少しずつ入れて絡める
-9. いい固さになったら強火にしてラー油を鍋肌にいれ、掬うように混ぜる
-10. バチバチに熱して完成
+1. Heat the pot, add oil, and stir-fry the ground pork
+2. Once cooked through, add the Shaoxing wine and soy sauce, stir-fry until the liquid evaporates, then mix in the sweet bean sauce
+3. Clean the pot once, then gently stir-fry the garlic, ginger, doubanjiang, douchi, and chili pepper in oil over low heat to release the aroma
+4. Once the oil takes on color, turn up the heat, add the zhajiang, and stir-fry together
+5. Add the stock, soy sauce, and Shaoxing wine and mix in
+6. Cut the tofu into pieces, parboil it separately, then add it in
+7. Once the tofu is in, simmer for 2-3 minutes
+8. Add the garlic scape and scallion, lower the heat, and stir in the water-dissolved potato starch a little at a time
+9. Once it reaches the right thickness, turn up the heat, pour chili oil around the edge of the pot, and fold it in with a scooping motion
+10. Bring it to a sizzling finish
 ```
 
-このように、材料のサブグループ化やシンプルな手順記述のスタイルを踏襲すること。
+Follow this same style: group ingredients into subgroups where relevant, and keep the steps simply written.

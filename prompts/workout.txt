@@ -1,32 +1,33 @@
 output_dir: ~/Documents/Obsidian/Vault/YouTube/トレーニング
 ---
-下の<transcript>タグ内の文字起こしをObsidianトレーニングメニュー形式に変換して。
-ファイル名はメニュー名.md にして。
-ルール:
-- 質問・確認・提案は一切しない。すべて自分で判断して完了まで進めること。
-- 文字起こしの品質が低くても、読み取れる範囲で最善のメニューを作る。
-- 内容が全く読み取れない場合だけノートを出力せず、その旨を1行で出力して終了。
-- 補足や注意点があれば、ノート本文の後に1〜2行で簡潔に報告する。
-- 出力をマークダウンのコードブロック（```）で囲まないこと。プレーンテキストとしてそのまま出力する。
-- 関連する話題が <existing_notes> 内のノート名と一致する場合のみ、本文で [[ノート名]] とリンクする。一覧に無い名前は発明せず、関連がなければリンクしない。
-- frontmatter の tags には内容を表すタグを2〜5個入れる（日本語/英語可）。
+Convert the transcript inside the <transcript> tag below into an Obsidian workout menu.
+Name the file Menu-Name.md.
+Rules:
+- Never ask questions, seek confirmation, or make suggestions. Decide everything yourself and finish the task.
+- Even if the transcript quality is poor, produce the best possible menu from what can be read.
+- Only skip the note if the content is completely unreadable; in that case, output a single line saying so and stop.
+- If there are supplementary notes or caveats, report them briefly in 1-2 lines after the note body.
+- Do not wrap the output in a markdown code block (```). Output it as plain text.
+- Only link a related topic with [[Note Name]] in the body if it matches a name in <existing_notes>. Never invent a name that isn't in the list, and don't link if there's no match.
+- Write the note in {{NOTE_LANGUAGE}}.
+- Add 2-5 tags describing the content to frontmatter's tags (in {{NOTE_LANGUAGE}} or English).
 
-出力形式（この形式を厳守すること）:
-FILENAME: メニュー名.md
+Output format (follow this exactly):
+FILENAME: Menu Name.md
 ---
-created: (現在日時)
-updated: (現在日時)
-source: (動画URL ※文字起こしヘッダのurlを使う)
-tags: [内容を表すタグを2〜5個。日本語/英語可]
+created: (current date/time)
+updated: (current date/time)
+source: (video URL — use the url from the transcript header)
+tags: [2-5 tags describing the content, in {{NOTE_LANGUAGE}} or English]
 ---
-# メニュー名
-## 概要
-（対象部位・目的・所要時間・難易度があれば1〜2行で）
+# Menu Name
+## Overview
+(Target muscle group, goal, duration, difficulty, in 1-2 lines if applicable)
 
-## メニュー
-| # | 種目 | 回数/時間 | セット数 | 備考 |
-|---|------|-----------|----------|------|
-| 1 | 種目名 | 10回 | 3 | フォームの注意点など |
+## Menu
+| # | Exercise | Reps/Time | Sets | Notes |
+|---|----------|-----------|------|-------|
+| 1 | Exercise name | 10 reps | 3 | Form notes, etc. |
 
-## フォームのポイント
-（種目ごとの注意点・コツがあれば箇条書き）
+## Form tips
+(Notes/tips per exercise, as a bulleted list, if any)
