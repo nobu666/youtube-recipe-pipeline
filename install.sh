@@ -49,8 +49,10 @@ ln -sf "$REPO_DIR/convert.py" "$SCRIPTS_DIR/convert.py"
 # Claude Code skill
 echo ""
 echo "--- Claude Code skill ---"
-mkdir -p "$HOME/.claude/commands"
-cp "$REPO_DIR/SKILL.md" "$HOME/.claude/commands/obsidian-import.md"
+mkdir -p "$HOME/.claude/skills/obsidian-import"
+cp "$REPO_DIR/SKILL.md" "$HOME/.claude/skills/obsidian-import/SKILL.md"
+# Remove the legacy commands-format copy to avoid double registration
+rm -f "$HOME/.claude/commands/obsidian-import.md"
 
 echo ""
 echo "=== Done ==="
