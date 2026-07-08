@@ -189,11 +189,12 @@ rm "<vault>/.transcripts/<video_id>.txt"
 
 ## Claude Code skill
 
-Placing `SKILL.md` at `~/.claude/commands/obsidian-import.md` lets you run note conversion from any Claude Code session with the `/obsidian-import` command. It reads the text files in `.transcripts/` and turns them into notes interactively.
+Placing `SKILL.md` at `~/.claude/skills/obsidian-import/SKILL.md` lets you run note conversion from any Claude Code session with the `/obsidian-import` command. It reads the text files in `.transcripts/` and turns them into notes interactively.
 
 ```bash
 # Install
-cp ~/repos/obsidian-import/SKILL.md ~/.claude/commands/obsidian-import.md
+mkdir -p ~/.claude/skills/obsidian-import
+cp ~/repos/obsidian-import/SKILL.md ~/.claude/skills/obsidian-import/SKILL.md
 ```
 
 ## Notes
