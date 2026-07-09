@@ -1,4 +1,4 @@
-output_dir: ~/Documents/Obsidian/Vault/YouTube/レシピ
+output_dir: ~/Documents/Obsidian/Vault/レシピ
 ---
 Convert the transcript inside the <transcript> tag below into an Obsidian recipe note.
 Rules:

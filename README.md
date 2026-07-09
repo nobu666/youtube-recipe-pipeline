@@ -80,14 +80,14 @@ Each prompt lives in the `prompts/` directory. The `output_dir:` header decides 
 
 | Prompt | Use | Output |
 |---|---|---|
-| `default` | General-purpose YouTube (a structured note) | `Vault/YouTube/` |
-| `recipe` | A cooking video -> a recipe | `Vault/YouTube/レシピ/` |
-| `lecture` | A talk/seminar -> a summary note | `Vault/YouTube/講義/` |
-| `workout` | Strength training/yoga -> a menu table | `Vault/YouTube/トレーニング/` |
-| `tool` | A tool explainer -> a how-to | `Vault/YouTube/ツール/` |
+| `default` | A transcribed video/audio that doesn't fit the categories below | `Vault/文字起こしメモ/` |
+| `recipe` | A cooking video -> a recipe | `Vault/レシピ/` |
+| `lecture` | A talk/seminar -> a summary note | `Vault/講義/` |
+| `workout` | Strength training/yoga -> a menu table | `Vault/トレーニング/` |
+| `tool` | A tool explainer -> a how-to | `Vault/ツール/` |
 | `article` | A web article/document -> a summary note | `Vault/記事/` |
 
-When `-p` isn't given, the beginning of each transcript is sent to Claude for auto-classification, which picks the best prompt and output location (e.g. a cooking video -> `recipe`, a lecture -> `lecture`). Even if a playlist mixes different genres of video, each one is routed automatically. A document/article conversion (no video source) is never classified as `default` — it falls back to `article` instead, so non-video content never ends up under `Vault/YouTube/`.
+When `-p` isn't given, the beginning of each transcript is sent to Claude for auto-classification, which picks the best prompt and output location (e.g. a cooking video -> `recipe`, a lecture -> `lecture`). Even if a playlist mixes different genres of video, each one is routed automatically. A document/article conversion (no video source, i.e. no `video_id` header) is never classified as `default` — it falls back to `article` instead, so non-transcribed content never ends up under `Vault/文字起こしメモ/`.
 
 Add a file to `prompts/` to support more use cases.
 
@@ -108,7 +108,7 @@ Export it in your shell profile to make it the default for every run.
 ### Prompt file format
 
 ```
-output_dir: ~/Documents/Obsidian/Vault/YouTube/講義
+output_dir: ~/Documents/Obsidian/Vault/講義
 ---
 Convert the transcript inside the <transcript> tag below into an Obsidian lecture note.
 Name the file Topic-Name.md.

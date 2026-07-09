@@ -1,4 +1,4 @@
-output_dir: ~/Documents/Obsidian/Vault/YouTube/講義
+output_dir: ~/Documents/Obsidian/Vault/講義
 ---
 Convert the transcript inside the <transcript> tag below into an Obsidian lecture note.
 Name the file Topic-Name.md.
