@@ -23,7 +23,7 @@ from markitdown import MarkItDown
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from url_guard import UnsafeURLError, assert_safe_url
 
-DEFAULT_OUTPUT_DIR = Path.home() / "Documents/Obsidian/Vault/YouTube"
+DEFAULT_OUTPUT_DIR = Path.home() / "Documents/Obsidian/Vault/文字起こしメモ"
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".pptx", ".ppt", ".docx", ".doc", ".xlsx", ".xls",

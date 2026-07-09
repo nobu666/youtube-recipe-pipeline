@@ -79,7 +79,7 @@ if [ -n "$OUTPUT_DIR_OVERRIDE" ]; then
 elif [ -n "$HEADER_OUTPUT_DIR" ]; then
   OUTPUT_DIR="$HEADER_OUTPUT_DIR"
 else
-  OUTPUT_DIR="$HOME/Documents/Obsidian/Vault/YouTube"
+  OUTPUT_DIR="$HOME/Documents/Obsidian/Vault/文字起こしメモ"
 fi
 
 TRANSCRIBE_SCRIPT="$HOME/scripts/transcribe.py"
@@ -140,7 +140,7 @@ classify_transcript() {
 - tool: how to use or an introduction to a piece of software or tool
 - workout: a training or exercise menu
 - article: a web article or blog post (a source other than YouTube)
-- default: a YouTube video that doesn't fit any of the above
+- default: a transcribed video or audio recording that doesn't fit any of the above
 
 Answer with a single word only.
 
@@ -151,9 +151,10 @@ ${excerpt}" | claude -p 2>&1 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
   esac
 }
 
-# "default" means "a YouTube video that doesn't fit any category" — a
-# document/article conversion (no video_id header) can't be a video, so
-# route it to article instead of dumping it under Vault/YouTube.
+# "default" means "a transcribed video/audio source that doesn't fit any
+# category" — a document/article conversion (no video_id header) wasn't
+# transcribed, so route it to article instead of dumping it under
+# Vault/文字起こしメモ.
 resolve_classification() {
   local classified="$1" txt_file="$2"
   if [ "$classified" = "default" ] && ! head -5 "$txt_file" | grep -q '^video_id:'; then
@@ -284,7 +285,7 @@ for TXT in "$TRANSCRIPT_DIR"/*.txt; do
     elif [ -n "$LOADED_OUTPUT_DIR" ]; then
       CURRENT_OUTPUT_DIR="$LOADED_OUTPUT_DIR"
     else
-      CURRENT_OUTPUT_DIR="$HOME/Documents/Obsidian/Vault/YouTube"
+      CURRENT_OUTPUT_DIR="$HOME/Documents/Obsidian/Vault/文字起こしメモ"
     fi
     mkdir -p "$CURRENT_OUTPUT_DIR"
   else

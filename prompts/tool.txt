@@ -1,4 +1,4 @@
-output_dir: ~/Documents/Obsidian/Vault/YouTube/ツール
+output_dir: ~/Documents/Obsidian/Vault/ツール
 ---
 Convert the transcript inside the <transcript> tag below into an Obsidian tool-explainer note.
 Name the file Tool-Name.md.

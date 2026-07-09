@@ -28,7 +28,7 @@ os.environ["MALLOC_STACK_LOGGING"] = ""
 warnings.filterwarnings("ignore", message=".*unauthenticated.*HF Hub.*")
 
 # === Config ===
-DEFAULT_OUTPUT_DIR = Path.home() / "Documents/Obsidian/Vault/YouTube"
+DEFAULT_OUTPUT_DIR = Path.home() / "Documents/Obsidian/Vault/文字起こしメモ"
 OBSIDIAN_OUTPUT_DIR = DEFAULT_OUTPUT_DIR
 TRANSCRIPT_DIR = OBSIDIAN_OUTPUT_DIR / ".transcripts"
 # A predictable fixed /tmp path leaves room for symlink pre-planting on a shared

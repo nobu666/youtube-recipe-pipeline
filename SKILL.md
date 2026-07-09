@@ -28,7 +28,7 @@ Scripts:        ~/scripts/obsidian-import    -> symlink
                 ~/scripts/transcribe.py     -> symlink
                 ~/scripts/convert.py        -> symlink
 venv:           ~/scripts/.venv/
-Vault:          ~/Documents/Obsidian/Vault/YouTube/レシピ/
+Vault:          ~/Documents/Obsidian/Vault/レシピ/
 Transcripts:    <vault>/.transcripts/*.txt     (unprocessed)
 Done:           <vault>/.transcripts/done/     (already converted to a recipe)
 ```
@@ -147,7 +147,7 @@ Use the extracted dish name, not the video's title.
 Save it directly to the Obsidian recipe folder:
 
 ```
-~/Documents/Obsidian/Vault/YouTube/レシピ/Dish Name.md
+~/Documents/Obsidian/Vault/レシピ/Dish Name.md
 ```
 
 ### 6. Handling processed files
