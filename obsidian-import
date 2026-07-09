@@ -151,6 +151,18 @@ ${excerpt}" | claude -p 2>&1 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
   esac
 }
 
+# "default" means "a YouTube video that doesn't fit any category" — a
+# document/article conversion (no video_id header) can't be a video, so
+# route it to article instead of dumping it under Vault/YouTube.
+resolve_classification() {
+  local classified="$1" txt_file="$2"
+  if [ "$classified" = "default" ] && ! head -5 "$txt_file" | grep -q '^video_id:'; then
+    echo "article"
+  else
+    echo "$classified"
+  fi
+}
+
 # Write out a note. Refuses to write through a symlinked output path (e.g. ~/.zshrc)
 # to avoid clobbering the link target. Uses printf to avoid echo's -n/-e flag quirks.
 write_note() {
@@ -258,6 +270,7 @@ for TXT in "$TRANSCRIPT_DIR"/*.txt; do
   # When -p isn't given, classify the transcript to auto-select a prompt
   if [ "$PROMPT_EXPLICIT" = false ]; then
     CLASSIFIED=$(classify_transcript "$TXT")
+    CLASSIFIED=$(resolve_classification "$CLASSIFIED" "$TXT")
     CLASSIFIED_FILE="${PROMPTS_DIR}/${CLASSIFIED}.txt"
     if [ ! -f "$CLASSIFIED_FILE" ]; then
       CLASSIFIED_FILE="${PROMPTS_DIR}/default.txt"

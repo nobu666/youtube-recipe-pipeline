@@ -102,6 +102,24 @@ assert_eq "exit code 0 (success) -> continue" "continue" "$(decide_transcribe_ou
 assert_eq "exit code 2 (not a video) -> fallback" "fallback" "$(decide_transcribe_outcome 2)"
 assert_eq "exit code 1 (error) -> continue (degrade and proceed)" "continue" "$(decide_transcribe_outcome 1)"
 
+# --- "default" classification fallback tests ---
+echo ""
+echo "=== default classification fallback (non-video -> article) ==="
+
+eval "$(awk '/^resolve_classification\(\) \{/,/^\}/' "$_SI_SCRIPT_FOR_STATUS")"
+
+_RC_TMP=$(mktemp -d)
+printf 'title: Some video\nvideo_id: abc123\nurl: https://youtu.be/abc123\n---\nbody\n' > "$_RC_TMP/video.txt"
+printf 'title: Some doc\nurl: file:///tmp/doc.pdf\nsource: markitdown-file\n---\nbody\n' > "$_RC_TMP/doc.txt"
+
+assert_eq "default + video_id present -> stays default" \
+  "default" "$(resolve_classification "default" "$_RC_TMP/video.txt")"
+assert_eq "default + no video_id -> falls back to article" \
+  "article" "$(resolve_classification "default" "$_RC_TMP/doc.txt")"
+assert_eq "recipe + no video_id -> unaffected (recipe)" \
+  "recipe" "$(resolve_classification "recipe" "$_RC_TMP/doc.txt")"
+rm -rf "$_RC_TMP"
+
 # --- Symlink write rejection tests ---
 echo ""
 echo "=== Symlink write rejection ==="
