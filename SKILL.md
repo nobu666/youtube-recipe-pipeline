@@ -127,7 +127,7 @@ source: https://www.youtube.com/watch?v=VIDEO_ID
 
 Key points:
 - Put the video URL in frontmatter's `source`
-- `created` / `updated` are the current date/time
+- `created` / `updated` are the current date/time — run `date '+%Y-%m-%d %H:%M'` to get it, don't guess (the system prompt's date context has no time component)
 - Ingredients are a bulleted list starting with `* ` (indent for subgroups)
 - Steps are a numbered list starting with `1. `
 - Never include extraneous commentary, impressions, promotion, or a call to subscribe
