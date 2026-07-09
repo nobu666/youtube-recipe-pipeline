@@ -16,3 +16,4 @@ jobs:
           python-version: "3.12"
       - run: pip install pytest markitdown
       - run: pytest tests/ -v
+      - run: bash tests/test_obsidian_import.sh
