@@ -87,7 +87,7 @@ Each prompt lives in the `prompts/` directory. The `output_dir:` header decides 
 | `tool` | A tool explainer -> a how-to | `Vault/YouTube/ツール/` |
 | `article` | A web article/document -> a summary note | `Vault/記事/` |
 
-When `-p` isn't given, the beginning of each transcript is sent to Claude for auto-classification, which picks the best prompt and output location (e.g. a cooking video -> `recipe`, a lecture -> `lecture`). Even if a playlist mixes different genres of video, each one is routed automatically.
+When `-p` isn't given, the beginning of each transcript is sent to Claude for auto-classification, which picks the best prompt and output location (e.g. a cooking video -> `recipe`, a lecture -> `lecture`). Even if a playlist mixes different genres of video, each one is routed automatically. A document/article conversion (no video source) is never classified as `default` — it falls back to `article` instead, so non-video content never ends up under `Vault/YouTube/`.
 
 Add a file to `prompts/` to support more use cases.
 
