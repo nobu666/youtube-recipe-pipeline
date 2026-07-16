@@ -179,6 +179,16 @@ rm "<vault>/.transcripts/<video_id>.txt"
 ~/scripts/obsidian-import -p recipe "https://www.youtube.com/watch?v=<video_id>"
 ```
 
+### Note conversion fails with a 401 error
+
+Step 2 shells out to the `claude` CLI (`claude -p`). If its OAuth token has expired, every note conversion fails with `Failed to authenticate. API Error: 401 OAuth access token has expired.` Re-authenticate, then rerun (only the failed ones are retried, per above):
+
+```bash
+claude
+# inside the interactive session:
+/login
+```
+
 ### File states
 
 | Location | Meaning |
